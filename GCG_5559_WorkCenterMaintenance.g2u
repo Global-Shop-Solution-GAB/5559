@@ -1,0 +1,638 @@
+Program.Sub.ScreenSU.Start
+Gui.FormWorkCenterMaintenance..Create
+Gui.FormWorkCenterMaintenance..Caption("Work Center Priority Maintenance [5559]")
+Gui.FormWorkCenterMaintenance..Size(8370,8160)
+Gui.FormWorkCenterMaintenance..MinX(8370)
+Gui.FormWorkCenterMaintenance..MinY(4000)
+Gui.FormWorkCenterMaintenance..Position(0,0)
+Gui.FormWorkCenterMaintenance..BackColor(-2147483633)
+Gui.FormWorkCenterMaintenance..MousePointer(0)
+Gui.FormWorkCenterMaintenance..Event(UnLoad,FormWorkCenterMaintenance_UnLoad)
+Gui.FormWorkCenterMaintenance.tabWorkCenters.Create(Tab)
+Gui.FormWorkCenterMaintenance.tabWorkCenters.Size(8640,7965)
+Gui.FormWorkCenterMaintenance.tabWorkCenters.Position(0,0)
+Gui.FormWorkCenterMaintenance.tabWorkCenters.Tabs(2)
+Gui.FormWorkCenterMaintenance.tabWorkCenters.SetTab(0)
+Gui.FormWorkCenterMaintenance.tabWorkCenters.Caption("Work Center Priorities")
+Gui.FormWorkCenterMaintenance.tabWorkCenters.SetTab(1)
+Gui.FormWorkCenterMaintenance.tabWorkCenters.Caption("SigmaNest Settings")
+Gui.FormWorkCenterMaintenance.gsgcWorkCenters.Create(GsGridControl)
+Gui.FormWorkCenterMaintenance.gsgcWorkCenters.Size(8205,7245)
+Gui.FormWorkCenterMaintenance.gsgcWorkCenters.Position(0,390)
+Gui.FormWorkCenterMaintenance.gsgcWorkCenters.Parent("tabWorkCenters",0)
+Gui.FormWorkCenterMaintenance.gsgcWorkCenters.Event(CellValueChanged,gsgcWorkCenters_CellValueChanged)
+Gui.FormWorkCenterMaintenance.lblFilePath.Create(Label,"SigmaNest Import File Path :",True,2145,255,0,75,195,True,0,"Arial",8,-2147483633,0)
+Gui.FormWorkCenterMaintenance.lblFilePath.Parent("tabWorkCenters",1)
+Gui.FormWorkCenterMaintenance.txtImportPath.Create(TextBox,"",True,7500,300,0,120,390,True,0,"Arial",8,-2147483643,1)
+Gui.FormWorkCenterMaintenance.txtImportPath.Parent("tabWorkCenters",1)
+Gui.FormWorkCenterMaintenance.txtImportPath.Event(LostFocus,txtImportPath_LostFocus)
+Gui.FormWorkCenterMaintenance.cmdFolderBrowser.Create(Button)
+Gui.FormWorkCenterMaintenance.cmdFolderBrowser.Size(375,375)
+Gui.FormWorkCenterMaintenance.cmdFolderBrowser.Position(7650,345)
+Gui.FormWorkCenterMaintenance.cmdFolderBrowser.Caption("^")
+Gui.FormWorkCenterMaintenance.cmdFolderBrowser.Event(Click,cmdFolderBrowser_Click)
+Gui.FormWorkCenterMaintenance.cmdFolderBrowser.Parent("tabWorkCenters",1)
+Gui.FormWorkCenterMaintenance.lblEmployee.Create(Label,"Default Employee :",True,1455,255,0,75,960,True,0,"Arial",8,-2147483633,0)
+Gui.FormWorkCenterMaintenance.lblEmployee.Parent("tabWorkCenters",1)
+Gui.FormWorkCenterMaintenance.txtEmployee.Create(TextBox,"",True,1470,300,0,120,1185,True,0,"Arial",8,-2147483643,1)
+Gui.FormWorkCenterMaintenance.txtEmployee.Parent("tabWorkCenters",1)
+Gui.FormWorkCenterMaintenance.txtEmployee.Event(LostFocus,txtEmployee_LostFocus)
+Gui.FormWorkCenterMaintenance.lblName.Create(Label,"Name :",True,1455,255,0,1680,975,True,0,"Arial",8,-2147483633,0)
+Gui.FormWorkCenterMaintenance.lblName.Parent("tabWorkCenters",1)
+Gui.FormWorkCenterMaintenance.txtEmployeeName.Create(TextBox,"",True,5925,300,0,1695,1185,False,0,"Arial",8,-2147483643,1)
+Gui.FormWorkCenterMaintenance.txtEmployeeName.Parent("tabWorkCenters",1)
+Gui.FormWorkCenterMaintenance.cmdEmployeeBrowser.Create(Button)
+Gui.FormWorkCenterMaintenance.cmdEmployeeBrowser.Size(375,375)
+Gui.FormWorkCenterMaintenance.cmdEmployeeBrowser.Position(7650,1140)
+Gui.FormWorkCenterMaintenance.cmdEmployeeBrowser.Parent("tabWorkCenters",1)
+Gui.FormWorkCenterMaintenance.cmdEmployeeBrowser.Caption("^")
+Gui.FormWorkCenterMaintenance.cmdEmployeeBrowser.Event(Click,cmdEmployeeBrowser_Click)
+Gui.FormWorkCenterMaintenance.lblDirection.Create(Label,"Scheduling Direction :",True,1710,255,0,75,1770,True,0,"Arial",8,-2147483633,0)
+Gui.FormWorkCenterMaintenance.lblDirection.Parent("tabWorkCenters",1)
+Gui.FormWorkCenterMaintenance.ddlScheduleingDirection.Create(DropDownList)
+Gui.FormWorkCenterMaintenance.ddlScheduleingDirection.Size(1890,330)
+Gui.FormWorkCenterMaintenance.ddlScheduleingDirection.Position(120,1980)
+Gui.FormWorkCenterMaintenance.ddlScheduleingDirection.Parent("tabWorkCenters",1)
+Gui.FormWorkCenterMaintenance.ddlScheduleingDirection.Event(Click,ddlScheduleingDirection_Click)
+Gui.FormWorkCenterMaintenance.lblOutsidePriority.Create(Label,"Outside Sequence Priority :",True,2100,255,0,0,105,True,0,"Arial",8,-2147483633,0)
+Gui.FormWorkCenterMaintenance.lblOutsidePriority.Parent("tabWorkCenters",0)
+Gui.FormWorkCenterMaintenance.txtOutsidePriority.Create(TextBox,"",True,495,300,0,2115,30,True,1,"Arial",8,-2147483643,1)
+Gui.FormWorkCenterMaintenance.txtOutsidePriority.Parent("tabWorkCenters",0)
+Gui.FormWorkCenterMaintenance.txtOutsidePriority.MaxLength(3)
+Gui.FormWorkCenterMaintenance.txtOutsidePriority.Event(LostFocus,txtOutsidePriority_LostFocus)
+Gui.FormWorkCenterMaintenance.txtOutsidePriority.NumericOnly(2)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+V.Global.iConnections.Declare(Long, 0)
+V.Global.bError.Declare(Boolean, False)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'GCG_5559_WorkCenterMaintenance.g2u
+'Trey S
+'June 24th 2019
+'For Louis Industries
+'Quote 11252-0
+'Ticket LOU120-51520191218-9
+'This script is part of Louis Industries Sigmanest Integration. This script is a maintenance menu that will allow the user to set priorites
+'for different work centers. When creating a work order, the priority will be set by another script based on these settings. 
+
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.CallSub(LoadDropDown)
+F.Intrinsic.Control.CallSub(LoadSettings)
+F.Intrinsic.Control.CallSub(LoadWorkCenters)
+F.Intrinsic.Control.CallSub(LoadGrid)
+
+GUI.FormWorkCenterMaintenance.tabWorkCenters.SetTab(0)
+GUI.FormWorkCenterMaintenance..Show
+
+F.Intrinsic.Control.CallSub(SetTabAnchors)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.SetTabAnchors.Start
+'for some reason, when setting tab anchors, if you set them in the screen SU, the screen flashes before coming up while loading
+'doing this here to avoid that
+
+F.Intrinsic.Control.Try
+
+Gui.FormWorkCenterMaintenance.tabWorkCenters.Anchor(15)
+Gui.FormWorkCenterMaintenance.gsgcWorkCenters.Anchor(15)
+'Gui.FormWorkCenterMaintenance.txtImportPath.Anchor(13)
+'Gui.FormWorkCenterMaintenance.cmdFolderBrowser.Anchor(9)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.SetTabAnchors.End
+
+Program.Sub.LoadDropDown.Start
+F.Intrinsic.Control.Try
+
+GUI.FormWorkCenterMaintenance.ddlScheduleingDirection.AddItem("Backward")
+GUI.FormWorkCenterMaintenance.ddlScheduleingDirection.AddItem("Forward")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.LoadDropDown.End
+
+Program.Sub.LoadWorkCenters.Start
+'load in the workcenters and they're set priority
+
+F.Intrinsic.Control.Try
+
+V.Local.sSQL.Declare(String)
+
+F.Intrinsic.Control.If(V.DataTable.dtWorkCenters.Exists)
+	F.Data.DataTable.Close("dtWorkCenters")
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.CallSub(OpenConnection)
+
+V.Local.sSQL.Set("select RTRIM(MACHINE) as WC, RTRIM(WC_NAME) as DESCRIPTION, Cast(0 as BIT) as WG from V_WORKCENTERS union select RTRIM(WORK_GROUP) as WC, RTRIM(DESCR) as DESCRIPTION, Cast(1 as BIT) as WG from V_WORKGROUP_HEAD")
+F.Data.DataTable.CreateFromSQL("dtWorkCenters", "Con", V.Local.sSQL, True)
+
+V.Local.sSQL.Set("select RTRIM(WORKCENTER) as WORKCENTER, RTRIM(PRIORITY) as PRIORITY from GCG_5559_WORKCENTERS")
+F.Data.Dictionary.CreateFromSQL("dictPriority", "Con", V.Local.sSQL)
+F.Data.Dictionary.SetDefaultReturn("dictPriority", "050")
+F.Data.DataTable.AddColumn("dtWorkCenters", "PRIORITY", "String")
+F.Data.DataTable.FillFromDictionary("dtWorkCenters", "dictPriority", "WC", "PRIORITY")
+F.Data.Dictionary.Close("dictPriority")
+
+F.Intrinsic.Control.CallSub(CloseConnection)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.LoadWorkCenters.End
+
+Program.Sub.LoadGrid.Start
+F.Intrinsic.Control.Try
+
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.AddGridviewFromDatatable("gvWorkCenters", "dtWorkCenters")
+
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetGridviewProperty("gvWorkCenters", "EnableAppearanceOddRow", True)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetGridviewProperty("gvWorkCenters", "OptionsViewColumnAutoWidth", False)
+
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WC", "Caption", "Work Center")
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WG", "Caption", "Work Group?")
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "DESCRIPTION", "Caption", "Description")
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "PRIORITY", "Caption", "Priority")
+
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WC", "HeaderFontBold", True)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "DESCRIPTION", "HeaderFontBold", True)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WG", "HeaderFontBold", True)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "PRIORITY", "HeaderFontBold", True)
+
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WC", "AllowEdit", False)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "DESCRIPTION", "AllowEdit", False)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WG", "AllowEdit", False)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "PRIORITY", "AllowEdit", True)
+
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WC", "MinWidth", 100)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "DESCRIPTION", "MinWidth", 235)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WG", "MinWidth", 100)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "PRIORITY", "MinWidth", 70)
+
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WC", "HeaderHAlignment", "Center")
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WG", "HeaderHAlignment", "Center")
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "PRIORITY", "HeaderHAlignment", "Center")
+
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WC", "CellHAlignment", "Center")
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WG", "CellHAlignment", "Center")
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "PRIORITY", "CellHAlignment", "Center")
+
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WC", "ReadOnly", True)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "DESCRIPTION", "ReadOnly", True)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "WG", "ReadOnly", True)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "PRIORITY", "ReadOnly", False)
+
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "PRIORITY", "CellBackColor", "LightYellow")
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "PRIORITY", "MaxLength", 3)
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "PRIORITY", "EditMaskType", "Numeric")
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "PRIORITY", "EditMask", "000")
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.SetColumnProperty("gvWorkCenters", "PRIORITY", "EditMaskAsDisplayFormat", False)
+
+GUI.FormWorkCenterMaintenance.gsgcWorkCenters.MainView("gvWorkCenters")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.LoadGrid.End
+
+Program.Sub.LoadSettings.Start
+'load the settings from the GCG_5559_Settings table
+
+F.Intrinsic.Control.Try
+
+V.Local.sPath.Declare(String)
+V.Local.sFile.Declare(String)
+V.Local.bExists.Declare(String)
+V.Local.sImportPath.Declare(String)
+V.Local.sSQL.Declare(String)
+
+'load the settings dt
+F.Intrinsic.Control.CallSub(OpenConnection)
+F.Data.DataTable.CreateFromSQL("dtSettings", "Con", "select RTRIM(SETTING) as SETTING, RTRIM(VALUE) as VALUE from GCG_5559_SETTINGS")
+F.Intrinsic.Control.CallSub(CloseConnection)
+
+'load import path
+F.Data.DataView.Create("dtSettings", "dvSetting", 22, "[SETTING] = 'IMPORT_PATH'", "")
+F.Intrinsic.Control.If(V.DataView.dtSettings!dvSetting.RowCount, >, 0)
+	GUI.FormWorkCenterMaintenance.txtImportPath.Text(V.DataView.dtSettings!dvSetting(0).VALUE!FieldValTrim)
+F.Intrinsic.Control.Else
+	GUI.FormWorkCenterMaintenance.txtImportPath.Text("")
+F.Intrinsic.Control.EndIf
+
+'load default employee
+F.Data.DataView.SetFilter("dtSettings", "dvSetting", "[SETTING] = 'DEFAULT_EMPLOYEE'")
+F.Intrinsic.Control.If(V.DataView.dtSettings!dvSetting.RowCount, >, 0)
+	GUI.FormWorkCenterMaintenance.txtEmployee.Text(V.DataView.dtSettings!dvSetting(0).VALUE!FieldValTrim)
+	F.Intrinsic.Control.CallSub(txtEmployee_LostFocus)
+F.Intrinsic.Control.Else
+	GUI.FormWorkCenterMaintenance.txtEmployee.Text("")
+F.Intrinsic.Control.EndIf
+
+'load scheduling direction
+F.Data.DataView.SetFilter("dtSettings", "dvSetting", "[SETTING] = 'SCHEDULE_DIRECTION'")
+F.Intrinsic.Control.If(V.DataView.dtSettings!dvSetting.RowCount, >, 0)
+	GUI.FormWorkCenterMaintenance.ddlScheduleingDirection.Text(V.DataView.dtSettings!dvSetting(0).VALUE!FieldValTrim)
+F.Intrinsic.Control.Else
+	GUI.FormWorkCenterMaintenance.ddlScheduleingDirection.Text("")
+F.Intrinsic.Control.EndIf
+
+'load outside priority
+F.Data.DataView.SetFilter("dtSettings", "dvSetting", "[SETTING] = 'OUTSIDE_PRIORITY'")
+F.Intrinsic.Control.If(V.DataView.dtSettings!dvSetting.RowCount, >, 0)
+	GUI.FormWorkCenterMaintenance.txtOutsidePriority.Text(V.DataView.dtSettings!dvSetting(0).VALUE!FieldValTrim)
+F.Intrinsic.Control.Else
+	GUI.FormWorkCenterMaintenance.txtOutsidePriority.Text("")
+F.Intrinsic.Control.EndIf
+
+F.Data.DataTable.Close("dtSettings")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.LoadSettings.End
+
+Program.Sub.FormWorkCenterMaintenance_UnLoad.Start
+'check if file path set, save priorities if neccessary
+
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.If(V.Global.bError.Not)
+	F.Intrinsic.Control.CallSub(PreExitCheck)
+	F.Intrinsic.Control.If(V.Args.OVERRIDE_EXIT)
+		F.Intrinsic.Control.ExitSub
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.If(V.DataTable.dtWorkCenters.Exists)
+	F.Intrinsic.Control.CallSub(Save, "WC", "")
+	F.Data.DataTable.Close("dtWorkCenters")
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.FormWorkCenterMaintenance_UnLoad.End
+
+Program.Sub.PreExitCheck.Start
+'warn if import path is not set
+
+F.Intrinsic.Control.Try
+
+V.Local.sImportPath.Declare(String)
+V.Local.iRet.Declare(Long)
+V.Local.bOverride.Declare(Boolean, False)
+
+V.Local.sImportPath.Set(V.Screen.FormWorkCenterMaintenance!txtImportPath.Text.Trim)
+F.Intrinsic.Control.If(V.Local.sImportPath.Trim, =, "")
+	F.Intrinsic.UI.Msgbox("There is no SigmaNest import path entered. Without this the import will not run. Set it now?", "Warning", 4, V.Local.iRet)
+	F.Intrinsic.Control.If(V.Local.iRet, =, 6)
+		GUI.FormWorkCenterMaintenance.tabWorkCenters.SetTab(1)
+		GUI.FormWorkCenterMaintenance.txtImportPath.SetFocus
+		V.Local.bOverride.Set(True)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Variable.AddRV("OVERRIDE_EXIT", V.Local.bOverride)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.PreExitCheck.End
+
+Program.Sub.gsgcWorkCenters_CellValueChanged.Start
+F.Intrinsic.Control.Try
+
+V.Local.sWC.Declare(String)
+
+V.Local.sWC.Set(V.DataTable.dtWorkCenters(V.Args.RowIndex).WC!FieldValTrim)
+F.Intrinsic.Control.If(V.DataTable.dtWorkCenters(V.Args.RowIndex).PRIORITY!FieldValTrim, =, "")
+	F.Data.DataTable.SetValue("dtWorkCenters", V.Args.RowIndex, "PRIORITY", "050")
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.CallSub(Save, "WC", V.Local.sWC)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.gsgcWorkCenters_CellValueChanged.End
+
+Program.Sub.Save.Start
+F.Intrinsic.Control.Try
+
+V.Local.sWC.Declare(String)
+V.Local.sFilter.Declare(String)
+V.Local.iRowStateFilter.Declare(Long)
+
+V.Local.sFilter.Set("[PRIORITY] <> ''")
+V.Local.sWC.Set(V.ARGS.WC.Trim)
+
+F.Intrinsic.Control.If(V.Local.sWC, !=, "")
+	F.Intrinsic.String.Build("[WC] = '{0}'", V.Local.sWC, V.Local.sFilter)
+F.Intrinsic.Control.EndIf
+
+F.Data.DataView.Create("dtWorkCenters", "dvSave", 22, V.Local.sFilter, "")
+
+F.Intrinsic.Control.If(V.DataView.dtWorkCenters!dvSave.RowCount, >, 0)
+	F.Data.DataView.ToDataTable("dtWorkCenters", "dvSave", "dtSave")
+	F.Intrinsic.Control.CallSub(OpenConnection)
+	F.Data.DataTable.SaveToDB("dtSave", "Con", "GCG_5559_WORKCENTERS", "WC", 256, "WC@!@WORKCENTER*!*PRIORITY@!@PRIORITY")
+	F.Intrinsic.Control.CallSub(CloseConnection)
+	F.Data.DataTable.Close("dtSave")
+F.Intrinsic.Control.EndIf
+
+F.Data.DataView.Close("dtWorkCenters", "dvSave")
+
+F.Data.DataTable.AcceptChanges("dtWorkCenters")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.Save.End
+
+Program.Sub.txtImportPath_LostFocus.Start
+F.Intrinsic.Control.Try
+
+V.Local.sPath.Declare(String)
+V.Local.sImportPath.Declare(String)
+V.Local.bExists.Declare(String)
+V.Local.sFile.Declare(String)
+
+V.Local.sImportPath.Set(V.Screen.FormWorkCenterMaintenance!txtImportPath.Text.Trim)
+F.Intrinsic.File.PathExists(V.Local.sImportPath, V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists.Not)
+	F.Intrinsic.UI.Msgbox("Invalid File Path Entered.")
+	GUI.FormWorkCenterMaintenance.txtImportPath.Text("")
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.CallSub(SaveSetting, "SETTING", "IMPORT_PATH", "VALUE", V.Local.sImportPath)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.txtImportPath_LostFocus.End
+
+Program.Sub.SaveSetting.Start
+'save a setting to the GCG_5559_SETTINGS table
+
+F.Intrinsic.Control.Try
+
+V.Local.sSetting.Declare(String)
+V.Local.sValue.Declare(String)
+
+V.Local.sSetting.Set(V.Args.SETTING)
+V.Local.sValue.Set(V.Args.VALUE)
+
+F.Data.DataTable.Create("dtSaveSettings")
+F.Data.DataTable.AddColumn("dtSaveSettings", "SETTING", "String")
+F.Data.DataTable.AddColumn("dtSaveSettings", "VALUE", "String")
+
+F.Data.DataTable.AddRow("dtSaveSettings", "SETTING", V.Local.sSetting, "VALUE", V.Local.sValue)
+
+F.Intrinsic.Control.CallSub(OpenConnection)
+F.Data.DataTable.SaveToDB("dtSaveSettings", "Con", "GCG_5559_SETTINGS", "SETTING", 256, "SETTING@!@SETTING*!*VALUE@!@VALUE")
+F.Intrinsic.Control.CallSub(CloseConnection)
+
+F.Data.DataTable.Close("dtSaveSettings")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.SaveSetting.End
+
+Program.Sub.cmdFolderBrowser_Click.Start
+F.Intrinsic.Control.Try
+
+V.Local.sPath.Declare(String)
+
+F.Intrinsic.UI.FolderBrowser("SigmaNest Import", V.Caller.Handle, V.Local.sPath)
+F.Intrinsic.Control.If(V.Local.sPath.IsNotCancel)
+	GUI.FormWorkCenterMaintenance.txtImportPath.Text(V.Local.sPath)
+	F.Intrinsic.Control.CallSub(txtImportPath_LostFocus)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.cmdFolderBrowser_Click.End
+
+Program.Sub.OpenConnection.Start
+'check if a connection to the database is already open
+'if not, open one
+'increment connection counter
+
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.If(V.Global.iConnections, =, 0)
+	F.ODBC.Connection!Con.OpenCompanyConnection
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Math.Add(V.Global.iConnections, 1, V.Global.iConnections)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.OpenConnection.End
+
+Program.Sub.CloseConnection.Start
+'if no connections are currently being used, close connection
+
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.If(V.Global.iConnections, >, 0)
+	F.Intrinsic.Math.Sub(V.Global.iConnections, 1, V.Global.iConnections)
+	
+	F.Intrinsic.Control.If(V.Global.iConnections, =, 0)
+		F.ODBC.Connection!Con.Close
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.CloseConnection.End
+
+Program.Sub.ErrorMessage.Start
+'basic error message for replacing catch block
+'this is really just for when printing the message and ending program
+'pass error number, error description, current subroutine
+'optional callback sub, this will be called before ending
+F.Intrinsic.Control.Try
+
+V.Local.iError.Declare(Long)
+V.Local.sErrorDescription.Declare(String)
+V.Local.sSubroutine.Declare(String)
+V.Local.sError.Declare(String)
+V.Local.bExists.Declare(Boolean)
+V.Local.sCallback.Declare(String)
+
+V.Local.iError.Set(V.Args.ErrorNumber)
+V.Local.sErrorDescription.Set(V.Args.ErrorDescription)
+V.Local.sSubroutine.Set(V.Args.Subroutine)
+
+'make sure we aren't in an error loop
+F.Intrinsic.Control.If(V.Global.bError)
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndIf
+V.Global.bError.Set(True)
+
+F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}", V.Caller.ScriptFile, V.Ambient.Newline, V.Local.sSubroutine, V.Local.iError, V.Local.sErrorDescription, V.Ambient.GABVersion, V.Local.sError)
+F.Intrinsic.UI.Msgbox(V.Local.sError)
+
+F.Intrinsic.Variable.ArgExists("Callback", V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists)
+	V.Local.sCallback.Set(V.Args.Callback.Trim)
+	F.Intrinsic.Control.CallSub(V.Local.sCallback)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Caller.ScriptFile,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndTry
+Program.Sub.ErrorMessage.End
+
+Program.Sub.CheckDirectory.Start
+'check if the given import directories exist
+'create them if they don't
+'pass PATH to check
+
+F.Intrinsic.Control.Try
+
+V.Local.sPath.Declare(String)
+V.Local.bExists.Declare(Boolean)
+
+V.Local.sPath.Set(V.Args.Path)
+F.Intrinsic.File.DirExists(V.Local.sPath, V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists.Not)
+	F.Intrinsic.File.CreateDir(V.Local.sPath)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.CheckDirectory.End
+
+Program.Sub.txtEmployee_LostFocus.Start
+'make sure the employee typed in is valid
+
+F.Intrinsic.Control.Try
+
+V.Local.sID.Declare(String)
+V.Local.sSQL.Declare(String)
+V.Local.sRet.Declare(String)
+
+V.Local.sID.Set(V.Screen.FormWorkCenterMaintenance!txtEmployee.Text.Trim)
+
+F.Intrinsic.Control.If(V.Local.sID.Trim, =, "")
+	GUI.FormWorkCenterMaintenance.txtEmployeeName.Text("")
+	F.Intrinsic.Control.CallSub(SaveSetting, "SETTING", "DEFAULT_EMPLOYEE", "VALUE", "")
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.LPad(V.Local.sID, "0", 5, V.Local.sID)
+F.Intrinsic.String.Build("select NAME from V_EMPLOYEE_MSTR where EMPLOYEE = '{0}'", V.Local.sID.PSQLFriendly, V.Local.sSQL)
+
+F.Intrinsic.Control.CallSub(OpenConnection)
+F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSQL, V.Local.sRet)
+F.Intrinsic.Control.CallSub(CloseConnection)
+F.Intrinsic.Control.If(V.Ambient.ExecuteAndReturnEOF)
+	F.Intrinsic.UI.Msgbox("Invalid Employee Entered.")
+	GUI.FormWorkCenterMaintenance.txtEmployee.Text("")
+	GUI.FormWorkCenterMaintenance.txtEmployeeName.Text("")
+	F.Intrinsic.Control.CallSub(SaveSetting, "SETTING", "DEFAULT_EMPLOYEE", "VALUE", "")
+F.Intrinsic.Control.Else
+	GUI.FormWorkCenterMaintenance.txtEmployee.Text(V.Local.sID)
+	GUI.FormWorkCenterMaintenance.txtEmployeeName.Text(V.Local.sRet)
+	F.Intrinsic.Control.CallSub(SaveSetting, "SETTING", "DEFAULT_EMPLOYEE", "VALUE", V.Local.sID)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.txtEmployee_LostFocus.End
+
+Program.Sub.cmdEmployeeBrowser_Click.Start
+'a browser to select an employee from
+
+F.Intrinsic.Control.Try
+
+V.Local.sRet.Declare(String)
+v.Local.sSql.Declare(String)
+v.local.sTitles.Declare(String)
+v.Local.iWidths.Declare(Long)
+
+'F.Intrinsic.UI.Browser(51, "", V.Local.sRet)
+
+'create browser, exclude salaried employess
+v.Local.sSql.Set("select EMPLOYEE, NAME from V_EMPLOYEE_MSTR where DATE_TERMINATION = '1900-01-01' and PAY_TYPE <> 'S'")
+F.Intrinsic.String.Split("Employee ID*!*Name","*!*",V.Local.sTitles)
+F.Intrinsic.String.Split("300*!*600","*!*",V.Local.iWidths)
+F.Intrinsic.UI.SetBrowserHotTypeAhead(True)
+
+F.Intrinsic.Control.CallSub(OpenConnection)
+f.Intrinsic.UI.Browser("Select Employee", "Con", V.Local.sSql, V.Local.sTitles, V.Local.iWidths, V.Local.sRet)
+F.Intrinsic.Control.CallSub(CloseConnection)
+
+F.Intrinsic.Control.If(V.Local.sRet.IsCancel)
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Split(V.Local.sRet, "*!*", V.Local.sRet)
+gui.FormWorkCenterMaintenance.txtEmployee.Text(V.Local.sRet(0).Trim)
+GUI.FormWorkCenterMaintenance.txtEmployeeName.Text(V.Local.sRet(1).Trim)
+
+F.Intrinsic.Control.CallSub(SaveSetting, "SETTING", "DEFAULT_EMPLOYEE", "VALUE", V.Local.sRet(0).Trim)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.cmdEmployeeBrowser_Click.End
+
+Program.Sub.txtOutsidePriority_LostFocus.Start
+'save the outside priority
+
+F.Intrinsic.Control.Try
+
+V.Local.sPriority.Declare(String)
+
+V.Local.sPriority.Set(V.Screen.FormWorkCenterMaintenance!txtOutsidePriority.Text.Trim)
+F.Intrinsic.String.LPad(V.Local.sPriority, 0, "3", V.Local.sPriority)
+GUI.FormWorkCenterMaintenance.txtOutsidePriority.Text(V.Local.sPriority)
+
+F.Intrinsic.Control.CallSub(SaveSetting, "SETTING", "OUTSIDE_PRIORITY", "VALUE", V.Local.sPriority)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.txtOutsidePriority_LostFocus.End
+
+Program.Sub.ddlScheduleingDirection_Click.Start
+'save scheduling direction
+
+F.Intrinsic.Control.Try
+
+V.Local.sDirection.Declare(String)
+
+V.Local.sDirection.Set(V.Screen.FormWorkCenterMaintenance!ddlScheduleingDirection.Text.Trim)
+F.Intrinsic.Control.CallSub(SaveSetting, "SETTING", "SCHEDULE_DIRECTION", "VALUE", V.Local.sDirection)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "FormWorkCenterMaintenance_UnLoad")
+F.Intrinsic.Control.EndTry
+Program.Sub.ddlScheduleingDirection_Click.End

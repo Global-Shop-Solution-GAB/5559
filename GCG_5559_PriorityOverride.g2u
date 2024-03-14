@@ -1,0 +1,355 @@
+Program.Sub.Preflight.Start
+V.Global.iConnections.Declare(Long, 0)
+V.Global.bError.Declare(Boolean, False)
+V.Global.bBDF.Declare(Boolean, False)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'GCG_5559_PriorityOverride.g2u
+'Trey S
+'June 26th 2019
+'For Louis Industries
+'Quote 11252-0
+'Ticket LOU120-51520191218-9
+'This script will launch when creating work orders, load the workcenter priorities from GCG_5559_SETTINGS,
+'find the highest priority workcenter on the job, and set the job priority to that
+
+'16630 - WO Header Populate
+'16650 - WO Header Pre Save
+'28600 - Auto WO Generation Populate
+
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.SelectCase(V.Caller.Hook)
+	F.Intrinsic.Control.CaseAny(16630, 16650)
+		'Work order header populate
+		F.Intrinsic.Control.CallSub(LoadWorkOrderHeader)
+	
+	F.Intrinsic.Control.Case(28600)
+		'Auto WO Generation Populate
+		V.Global.bBDF.Set(True)
+		F.Intrinsic.Control.CallSub(LoadBDF)
+		
+	F.Intrinsic.Control.CaseElse
+		F.Intrinsic.Control.CallSub(Unload)
+	
+F.Intrinsic.Control.EndSelect
+
+F.Intrinsic.Control.CallSub(OpenConnection)
+F.Intrinsic.Control.CallSub(LoadOperations)
+F.Intrinsic.Control.CallSub(LoadPriorities)
+F.Intrinsic.Control.CallSub(GetHighestPriority)
+F.Intrinsic.Control.CallSub(SetPriority)
+
+F.Intrinsic.Control.CallSub(Unload)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.GetHighestPriority.Start
+'get the highest priority for each WO in the dtJobs table
+
+F.Intrinsic.Control.Try
+
+V.Local.iCounter.Declare(Long)
+V.Local.sFilter.Declare(String)
+
+F.Data.Dictionary.Create("dictPriority")
+F.Data.Dictionary.SetDefaultReturn("dictPriority", "050")
+
+F.Data.DataView.Create("dtOperations", "dvOperations", 22, "", "PRIORITY desc")
+F.Intrinsic.Control.For(V.Local.iCounter, 0, V.DataTable.dtDistinctRouters.RowCount--, 1)
+	F.Intrinsic.String.Build("[ROUTER] = '{0}'", V.DataTable.dtDistinctRouters(V.Local.iCounter).ROUTER!FieldValTrim, V.Local.sFilter)
+	F.Data.DataView.SetFilter("dtOperations", "dvOperations", V.Local.sFilter)
+	
+	F.Intrinsic.Control.If(V.DataView.dtOperations!dvOperations.RowCount, >, 0)
+		F.Data.Dictionary.AddItem("dictPriority", V.DataView.dtOperations!dvOperations(0).ROUTER!FieldValTrim, V.DataView.dtOperations!dvOperations(0).PRIORITY!FieldValTrim)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Next(V.Local.iCounter)
+F.Data.DataView.Close("dtOperations", "dvOperations")
+F.Data.DataTable.Close("dtOperations")
+
+F.Data.DataTable.FillFromDictionary("dtJobs", "dictPriority", "ROUTER", "PRIORITY")
+
+F.Data.Dictionary.Close("dictPriority")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.GetHighestPriority.End
+
+Program.Sub.CreateDataTable.Start
+'create the dt jobs table that will be used for storing the JOBS we're processing
+
+F.Intrinsic.Control.Try
+
+F.Data.DataTable.Create("dtJobs", True)
+F.Data.DataTable.AddColumn("dtJobs", "JOB", "String")
+F.Data.DataTable.AddColumn("dtJobs", "SUFFIX", "String")
+F.Data.DataTable.AddColumn("dtJobs", "ROUTER", "String")
+F.Data.DataTable.AddColumn("dtJobs", "PRIORITY", "String")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.CreateDataTable.End
+
+Program.Sub.Unload.Start
+'clean up, exit
+
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.If(V.DataTable.dtJobs.Exists)
+	F.Data.DataTable.Close("dtJobs")
+	
+	F.Intrinsic.Control.If(V.DataTable.dtOperations.Exists)
+		F.Data.DataTable.Close("dtOperations")
+	F.Intrinsic.Control.EndIf
+
+	F.Intrinsic.Control.If(V.DataTable.dtDistinctRouters.Exists)
+		F.Data.DataTable.Close("dtDistinctRouters")
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.CallSub(CloseConnection)
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.Unload.End
+
+Program.Sub.LoadBDF.Start
+'load the BDF from AutoWorkOrderGeneration
+
+F.Intrinsic.Control.Try
+
+V.Local.iBDFRows.Declare(Long)
+V.Local.iCounter.Declare(Long)
+V.Local.sJob.Declare(String)
+V.Local.sRouter.Declare(String)
+V.Local.sRev.Declare(String)
+
+F.Intrinsic.Control.CallSub(CreateDataTable)
+
+F.Intrinsic.BDF.Load("bdfJobs", "AUX001")
+F.Intrinsic.BDF.ReadRowCount("bdfJobs", V.Local.iBDFRows)
+V.Local.iBDFRows.Set(V.Local.iBDFRows.--)
+
+F.Intrinsic.Control.If(V.Local.iBDFRows, <, 1)
+	F.Intrinsic.Control.CallSub(Unload)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.For(V.Local.iCounter, 0, V.Local.iBDFRows, 1)
+	F.Intrinsic.BDF.TextMatrix("bdfJobs", 1, V.Local.iCounter, V.Local.sRouter)
+	F.Intrinsic.BDF.TextMatrix("bdfJobs", 2, V.Local.iCounter, V.Local.sRev)
+	
+	F.Intrinsic.String.GSSPartString(V.Local.sRouter, V.Local.sRev, V.Local.sRouter)
+	
+	F.Data.DataTable.AddRow("dtJobs", "ROUTER", V.Local.sRouter.Trim)
+F.Intrinsic.Control.Next(V.Local.iCounter)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.LoadBDF.End
+
+Program.Sub.LoadPriorities.Start
+'load the WC priorities from GCG_5559_WORKCENTERS
+'load outside sequence priority from GCG_5559_SETTINGS
+
+F.Intrinsic.Control.Try
+
+V.Local.sRet.Declare(String)
+V.Local.sOutsidePriority.Declare(String)
+
+F.Data.Dictionary.CreateFromSQL("dictPriority", "Con", "select RTRIM(WORKCENTER) as WORKCENTER, RTRIM(PRIORITY) as PRIORITY from GCG_5559_WORKCENTERS")
+F.Data.Dictionary.SetDefaultReturn("dictPriority", "050")
+F.Data.DataTable.AddColumn("dtOperations", "WC_PRIORITY", "String")
+F.Data.DataTable.FillFromDictionary("dtOperations", "dictPriority", "WC", "WC_PRIORITY")
+F.Data.Dictionary.Close("dictPriority")
+
+F.ODBC.Connection!Con.ExecuteAndReturn("select RTRIM(VALUE) from GCG_5559_SETTINGS where SETTING = 'OUTSIDE_PRIORITY'", V.Local.sRet)
+
+F.Intrinsic.Control.If(V.Ambient.ExecuteAndReturnEOF)
+	V.Local.sOutsidePriority.Set("050")
+F.Intrinsic.Control.Else
+	V.Local.sOutsidepriority.Set(V.Local.sRet.Trim)
+F.Intrinsic.Control.EndIf
+
+F.Data.Dictionary.Create("dictPriority")
+F.Data.Dictionary.AddItem("dictPriority", "O", V.Local.sOutsidePriority)
+F.Data.Dictionary.SetDefaultReturn("dictPriority", "050")
+F.Data.DataTable.AddColumn("dtOperations", "OUTSIDE_PRIORITY", "String")
+F.Data.DataTable.FillFromDictionary("dtOperations", "dictPriority", "LMO", "OUTSIDE_PRIORITY")
+F.Data.Dictionary.Close("dictPriority")
+
+F.Data.DataTable.AddExpressionColumn("dtOperations", "PRIORITY", "String", "IIF([LMO] = 'O', [OUTSIDE_PRIORITY], [WC_PRIORITY])")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.LoadPriorities.End
+
+Program.Sub.LoadWorkOrderHeader.Start
+'load information from Work Order Header screen
+
+F.Intrinsic.Control.Try
+
+V.Local.sJob.Declare(String)
+V.Local.sSuffix.Declare(String)
+V.Local.sRouter.Declare(String)
+
+V.Local.sJob.Set(V.Passed.000003.Trim)
+V.Local.sSuffix.Set(V.Passed.000004.Trim)
+V.Local.sRouter.Set(V.Passed.000006.Trim)
+
+F.Intrinsic.Control.If(V.Local.sJob.Trim, =, "", OR, V.Local.sRouter.Trim, =, "")
+	F.Intrinsic.Control.CallSub(Unload)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.CallSub(CreateDataTable)
+F.Data.DataTable.AddRow("dtJobs", "JOB", V.Local.sJob, "SUFFIX", V.Local.sSuffix, "ROUTER", V.Local.sRouter)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.LoadWorkOrderHeader.End
+
+Program.Sub.LoadOperations.Start
+'load the operations for all routers in dtJobs
+
+F.Intrinsic.Control.Try
+
+V.Local.sSQL.Declare(String)
+V.Local.sFilter.Declare(String)
+
+F.Data.DataView.Create("dtJobs", "dvJobsFilter", 22)
+F.Data.DataView.ToDataTableDistinct("dtJobs", "dvJobsFilter", "dtDistinctRouters", "ROUTER", True)
+F.Data.DataView.Close("dtJobs", "dvJobsFilter")
+F.Data.DataView.Create("dtDistinctRouters", "dvJobsFilter", 22)
+F.Data.DataView.ToString("dtDistinctRouters", "dvJobsFilter", "ROUTER", "&$*(@#(#$))", "','", V.Local.sFilter)
+F.Data.DataView.Close("dtDistinctRouters", "dvJobsFilter")
+
+F.Intrinsic.String.Build("select RTRIM(ROUTER) as ROUTER, RTRIM(PART_WC_OUTSIDE) as WC, RTRIM(LMO) as LMO from V_ROUTER_LINE where (LMO = 'L' or LMO = 'O') and ROUTER in ('{0}') order by ROUTER, LINE_ROUTER", V.Local.sFilter, V.Local.sSQL)
+
+F.Data.DataTable.CreateFromSQL("dtOperations", "Con", V.Local.sSQL, True)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.LoadOperations.End
+
+Program.Sub.OpenConnection.Start
+'check if a connection to the database is already open
+'if not, open one
+'increment connection counter
+
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.If(V.Global.iConnections, =, 0)
+	F.ODBC.Connection!Con.OpenCompanyConnection
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Math.Add(V.Global.iConnections, 1, V.Global.iConnections)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.OpenConnection.End
+
+Program.Sub.CloseConnection.Start
+'if no connections are currently being used, close connection
+
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.If(V.Global.iConnections, >, 0)
+	F.Intrinsic.Math.Sub(V.Global.iConnections, 1, V.Global.iConnections)
+	
+	F.Intrinsic.Control.If(V.Global.iConnections, =, 0)
+		F.ODBC.Connection!Con.Close
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.CloseConnection.End
+
+Program.Sub.ErrorMessage.Start
+'basic error message for replacing catch block
+'this is really just for when printing the message and ending program
+'pass error number, error description, current subroutine
+'optional callback sub, this will be called before ending
+F.Intrinsic.Control.Try
+
+V.Local.iError.Declare(Long)
+V.Local.sErrorDescription.Declare(String)
+V.Local.sSubroutine.Declare(String)
+V.Local.sError.Declare(String)
+V.Local.bExists.Declare(Boolean)
+V.Local.sCallback.Declare(String)
+
+V.Local.iError.Set(V.Args.ErrorNumber)
+V.Local.sErrorDescription.Set(V.Args.ErrorDescription)
+V.Local.sSubroutine.Set(V.Args.Subroutine)
+
+'make sure we aren't in an error loop
+F.Intrinsic.Control.If(V.Global.bError)
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndIf
+V.Global.bError.Set(True)
+
+F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}", V.Caller.ScriptFile, V.Ambient.Newline, V.Local.sSubroutine, V.Local.iError, V.Local.sErrorDescription, V.Ambient.GABVersion, V.Local.sError)
+F.Intrinsic.UI.Msgbox(V.Local.sError)
+
+F.Intrinsic.Variable.ArgExists("Callback", V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists)
+	V.Local.sCallback.Set(V.Args.Callback.Trim)
+	F.Intrinsic.Control.CallSub(V.Local.sCallback)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Caller.ScriptFile,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndTry
+Program.Sub.ErrorMessage.End
+
+Program.Sub.SetPriority.Start
+F.Intrinsic.Control.Try
+
+V.Local.sRow.Declare(String)
+V.Local.iCounter.Declare(Long)
+
+F.Intrinsic.Control.If(V.Global.bBDF.Not)
+	'single job, WO header
+	V.Passed.000022.Set(V.DataTable.dtJobs(0).PRIORITY!FieldValTrim)
+	F.Intrinsic.Control.CallSub(Unload)
+F.Intrinsic.Control.EndIf
+
+'if we're here, it's on auto WO gen
+F.Intrinsic.BDF.Clone("bdfJobs", "bdfJobsFinal")
+
+F.Intrinsic.Control.For(V.Local.iCounter, 0, V.DataTable.dtJobs.RowCount--, 1)
+	F.Intrinsic.BDF.ReadRow("bdfJobs", V.Local.iCounter, V.Local.sRow)
+	F.Intrinsic.String.Split(V.Local.sRow, "|~|", V.Local.sRow)
+	V.Local.sRow(16).Set(V.DataTable.dtJobs(V.Local.iCounter).PRIORITY!FieldValTrim)
+	F.Intrinsic.String.Join(V.Local.sRow, "|~|", V.Local.sRow)
+	F.Intrinsic.BDF.WriteRow("bdfJobsFinal", V.Local.sRow)
+F.Intrinsic.Control.Next(V.Local.iCounter)
+
+F.Intrinsic.BDF.Save("bdfJobsFinal", "AUX001")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.SetPriority.End
+
+
+

@@ -1,0 +1,887 @@
+Program.Sub.Preflight.Start
+V.Global.iConnections.Declare(Long, 0)
+V.Global.bError.Declare(Boolean, False)
+V.Global.sProject.Declare(String, "5559")
+V.Global.sProjectTitle.Declare(String, "GCG_5559_SigmaNestImport")
+Program.External.Include.Library("JB0455.lib")
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'GCG_5559_SigmaNestImport.g2u
+'Trey S
+'June 26th 2019
+'For Louis Industries
+'Quote 11252-0
+'Ticket LOU120-51520191218-9
+'This script will run automatically on online update
+'It will read SigmaNest feedback files and update GSS estimates based on that
+'the jobs will then be reshceduled
+
+'Hook 38130, Post Online Update
+
+F.Intrinsic.Control.Try
+
+V.Local.sMessage.Declare(String)
+
+'check if the script is already running
+F.Intrinsic.Control.CallSub(ScriptPIDCheck, "PROJECT", V.Global.sProject, "TASK", V.Global.sProjectTitle)
+F.Intrinsic.Control.CallSub(OpenConnection)
+
+'if we get here, we're good to run, load the files
+F.Intrinsic.Control.CallSub(ReadFiles)
+
+'check work orders
+F.Intrinsic.Control.If(V.DataTable.dtNestData.RowCount, <, 1)
+	F.Intrinsic.Control.CallSub(Unload)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Build("{0} potential jobs found to update.", V.DataTable.dtNestData.RowCount, V.Local.sMessage)
+F.Intrinsic.Control.CallSub(AddLog, "PROJECT", V.Global.sProject, "MESSAGE", V.Local.sMessage)
+
+F.Intrinsic.Control.CallSub(CheckWorkOrders)
+
+'check if anything was pulled in
+F.Intrinsic.Control.If(V.DataTable.dtFinalNestData.RowCount, <, 1)
+	V.Local.sMessage.Set("0 of them are valid Global Shop jobs. Exiting...")
+	F.Intrinsic.Control.CallSub(AddLog, "PROJECT", V.Global.sProject, "MESSAGE", V.Local.sMessage)
+	F.Intrinsic.Control.CallSub(Unload)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Build("{0} valid jobs found to update. Processing...", V.DataTable.dtFinalNestData.RowCount, V.Local.sMessage)
+F.Intrinsic.Control.CallSub(AddLog, "PROJECT", V.Global.sProject, "MESSAGE", V.Local.sMessage)
+
+'process the data
+F.Intrinsic.Control.CallSub(UpdateEstimates)
+F.Intrinsic.Control.CallSub(RescheduleJobs)
+F.Intrinsic.Control.CallSub(UpdateOpenWODashboardNotes)
+F.Intrinsic.Control.CallSub(RecordLabor)
+'F.Intrinsic.Control.CallSub(CloseSequences)
+
+F.Intrinsic.String.Build("Finished Processing {0} Job(s).", V.DataTable.dtFinalNestData.RowCount, V.Local.sMessage)
+F.Intrinsic.Control.CallSub(AddLog, "PROJECT", V.Global.sProject, "MESSAGE", V.Local.sMessage)
+
+F.Intrinsic.Control.CallSub(Unload)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.GetSettings.Start
+F.Intrinsic.Control.Try
+
+F.Data.DataTable.CreateFromSQL("dtSettings", "Con", "select RTRIM(SETTING) as SETTING, RTRIM(VALUE) as VALUE from GCG_5559_SETTINGS", True)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.GetSettings.End
+
+Program.Sub.GetSetting.Start
+F.Intrinsic.Control.Try
+
+V.Local.sSetting.Declare(String)
+V.Local.sValue.Declare(String, "")
+V.Local.sFilter.Declare(String)
+
+V.Local.sSetting.Set(V.Args.SETTING.Trim)
+
+F.Intrinsic.Control.If(V.DataTable.dtSettings.Exists, =, False)
+	F.Intrinsic.Control.CallSub(GetSettings)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Build("[SETTING] = '{0}'", V.Local.sSetting, V.Local.sFilter)
+F.Data.DataView.Create("dtSettings", "dvSetting", 22, V.Local.sFilter, "")
+F.Intrinsic.Control.If(V.DataView.dtSettings!dvSetting.RowCount, >, 0)
+	V.Local.sValue.Set(V.DataView.dtSettings!dvSetting(0).VALUE!FieldValTrim)
+F.Intrinsic.Control.EndIf
+F.Data.DataView.Close("dtSettings", "dvSetting")
+
+F.Intrinsic.Variable.AddRV("SETTING", V.Local.sValue)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.GetSetting.End
+
+Program.Sub.CloseSettingsDT.Start
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.If(V.DataTable.dtSettings.Exists)
+	F.Data.DataTable.Close("dtSettings")
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.CloseSettingsDT.End
+
+Program.Sub.CloseImportDT.Start
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.If(V.DataTable.dtNestData.Exists)
+	F.Data.DataTable.Close("dtNestData")
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.CloseImportDT.End
+
+Program.Sub.CreateImportDataTable.Start
+F.Intrinsic.Control.Try
+
+F.Data.DataTable.Create("dtNestData", True)
+F.Data.DataTable.AddColumn("dtNestData", "FULL_JOB", "String")
+F.Data.DataTable.AddColumn("dtNestData", "PROGRAM_QTY", "Float")
+F.Data.DataTable.AddColumn("dtNestData", "TIME", "Float")
+F.Data.DataTable.AddColumn("dtNestData", "WORKCENTER", "String")
+F.Data.DataTable.AddColumn("dtNestData", "TASK", "String")
+F.Data.DataTable.AddColumn("dtNestData", "PARTS_PER_HOUR", "Float")
+F.Data.DataTable.AddColumn("dtNestData", "JOB", "String")
+F.Data.DataTable.AddColumn("dtNestData", "SUFFIX", "String")
+F.Data.DataTable.AddColumn("dtNestData", "SEQUENCE", "String")
+F.Data.DataTable.AddColumn("dtNestData", "LMO", "String", "L")
+F.Data.DataTable.AddColumn("dtNestData", "VALID", "String", "N")
+F.Data.DataTable.AddExpressionColumn("dtNestData", "JOB_SUFFIX", "String", "Trim([JOB]) + Trim([SUFFIX])")
+F.Data.DataTable.AddExpressionColumn("dtNestData", "JSS", "String", "Trim([JOB]) + Trim([SUFFIX]) + Trim([SEQUENCE])")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.CreateImportDataTable.End
+
+Program.Sub.ReadFiles.Start
+F.Intrinsic.Control.Try
+
+V.Local.sFileList.Declare(String)
+V.Local.sImportPath.Declare(String)
+V.Local.sMessage.Declare(String)
+V.Local.iCounter.Declare(Long)
+V.Local.sLastFile.Declare(String)
+V.Local.sFile.Declare(String)
+V.Local.sMovePath.Declare(String)
+V.Local.sNewName.Declare(String)
+V.Local.bContains.Declare(Boolean)
+V.Local.sExtension.Declare(String)
+
+F.Intrinsic.Control.CallSub(GetSetting, "SETTING", "IMPORT_PATH")
+V.Local.sImportPath.Set(V.Args.Setting)
+F.Intrinsic.Control.If(V.Local.sImportPath.Trim, =, "")
+	V.Local.sMessage.Set("Error: No Import Path set up in Shop Floor Control > Administration > Workcenter Priority Maintenance [5559]")
+	F.Intrinsic.Control.CallSub(UnattendedErrorMessage, "MESSAGE", V.Local.sMessage, "PROJECT", V.Global.sProject, "PROJECTTITLE", V.Global.sProjectTitle)
+	F.Intrinsic.Control.CallSub(Unload)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.If(V.Local.sImportPath.Right1, !=, "")
+	F.Intrinsic.String.Build("{0}\", V.Local.sImportPath, V.Local.sImportPath)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.File.GetFileList(V.Local.sImportPath, V.Local.sFileList)
+F.Intrinsic.Control.If(V.Local.sFileList.Trim, =, "")
+	'no files, exit
+	F.Intrinsic.Control.CallSub(Unload)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.CallSub(CreateImportDataTable)
+
+'switching from reading standard sigmanest files to reading SnOutput.txt, which will be created when jobs are posted
+'loop through and process the files
+F.Intrinsic.String.Split(V.Local.sFileList, ":", V.Local.sFileList)
+F.Intrinsic.Control.For(V.Local.iCounter, V.Local.sFileList.UBound, 0, -1)
+	F.Intrinsic.File.GetExtensionComponent(V.Local.sFileList(V.Local.iCounter), V.Local.sExtension)
+	F.Intrinsic.Control.If(V.Local.sExtension, =, "txt")
+		F.Intrinsic.String.IsInString(V.Local.sFileList(V.Local.iCounter), "SNOutput", True, V.Local.bContains)
+		F.Intrinsic.Control.If(V.Local.bContains)
+			F.Intrinsic.Control.CallSub(ReadFile, "FILENAME", V.Local.sFileList(V.Local.iCounter), "FILEPATH", V.Local.sImportPath)
+			F.Intrinsic.String.Build("{0}{1}", V.Local.sImportPath, V.Local.sFileList(V.Local.iCounter), V.Local.sFile)
+			F.Intrinsic.String.Build("{0}Processed\", V.Local.sImportPath, V.Local.sMovePath)
+			F.Intrinsic.String.Build("{2}_{0}_{1}", V.Ambient.Date.PervasiveDate, V.Ambient.Time.FormatHHNNSS, V.Local.sFileList(V.Local.iCounter), V.Local.sNewName)
+			F.Intrinsic.String.Replace(V.Local.sNewName, ".txt", "", V.Local.sNewName)
+			V.Local.sNewName.Append(".txt")
+			F.Intrinsic.Control.CallSub(MoveFile, "FILE", V.Local.sFile, "NEW_PATH", V.Local.sMovePath, "NEW_NAME", V.Local.sNewName)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Next(V.Local.iCounter)
+
+F.Data.DataTable.SetValueFormat("dtNestData", -1, "TIME", "TIME", "########################0.0000")
+F.Data.DataTable.SetValueFormat("dtNestData", -1, "PARTS_PER_HOUR", "PARTS_PER_HOUR", "########################0.0000")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.ReadFiles.End
+
+Program.Sub.ReadFile.Start
+'read an individual file into the datatables
+
+F.Intrinsic.Control.Try
+
+V.Local.sFileName.Declare(String)
+V.Local.sFilePath.Declare(String)
+V.Local.sFullFile.Declare(String)
+V.Local.sFileContents.Declare(String)
+V.Local.sFields.Declare(String)
+V.Local.sTypes.Declare(String)
+V.Local.iCounter.Declare(Long)
+V.Local.sFilter.Declare(String)
+V.Local.fQuantity.Declare(Float)
+V.Local.fTime.Declare(Float)
+V.Local.sJob.Declare(String)
+V.Local.fCutTime.Declare(Float)
+V.Local.sSplitJob.Declare(String)
+V.Local.sMessage.Declare(String)
+V.Local.sTaskName.Declare(String)
+V.Local.sWC.Declare(String)
+V.Local.fAverageTime.Declare(Float)
+V.Local.fGood.Declare(Float)
+
+V.Local.sFileName.Set(V.Args.FileName)
+V.Local.sFilePath.Set(V.Args.FilePath)
+
+F.Intrinsic.String.Build("Reading file {0}", V.Local.sFileName, V.Local.sMessage)
+F.Intrinsic.Control.CallSub(AddLog, "PROJECT", V.Global.sProject, "MESSAGE", V.Local.sMessage)
+
+F.Intrinsic.String.Build("{0}{1}", V.Local.sFilePath, V.Local.sFileName, V.Local.sFullFile)
+F.Intrinsic.File.File2String(V.Local.sFullFile, V.Local.sFileContents)
+
+'changing to use SNOutput.txt
+V.Local.sFields.Set("JOBNUMBER*!*PARTNUMBER*!*TASKNAME*!*REPEAT_ID*!*QTYINPROCESS*!*QTYONPROGRAM*!*QTYCOMPLETED*!*MACHINE*!*PROGRAMMER*!*SINGLE_PART_TIME_SECONDS")
+V.Local.sTypes.Set("String*!*String*!*String*!*String*!*String*!*String*!*String*!*String*!*String*!*String")
+F.Data.DataTable.CreateFromString("dtFileTemp", V.Local.sFileContents, V.Local.sFields, V.Local.sTypes, ",", V.Ambient.NewLine)
+
+'account for blank bottom row
+F.Intrinsic.Control.If(V.DataTable.dtFileTemp.RowCount, <, 2)
+	F.Data.DataTable.Close("dtFileTemp")
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+'this file lists each job multiple times, just need one
+'this still won't give one, can have one job on multiple nests, accounting for that in the loop
+F.Data.DataView.Create("dtFileTemp", "dvFileTemp", 22, "Trim([JOBNUMBER]) <> ''", "")
+F.Data.DataView.ToDataTableDistinct("dtFileTemp", "dvFileTemp", "dtFile", "JOBNUMBER*!*PARTNUMBER*!*TASKNAME*!*QTYONPROGRAM*!*MACHINE*!*SINGLE_PART_TIME_SECONDS")
+F.Data.DataView.Close("dtFileTemp", "dvFileTemp")
+F.Data.DataTable.Close("dtFileTemp")
+
+'convert to float, and from seconds to hours
+F.Data.DataTable.AddExpressionColumn("dtFile", "OnePartCutTime_Hrs", "Float", "Convert([SINGLE_PART_TIME_SECONDS], 'System.Double') / 3600")
+F.Data.DataTable.AddExpressionColumn("dtFile", "QTY_FLOAT", "Float", "Convert([QTYONPROGRAM], 'System.Double')")
+F.Data.DataTable.AddExpressionColumn("dtFile", "TOTAL_TIME", "Float", "[QTY_FLOAT] * [OnePartCutTime_Hrs]")
+
+F.Data.DataView.Create("dtFile", "dvFile", 22, "", "TASKNAME")
+F.Data.DataView.ToDataTableDistinct("dtFile", "dvFile", "dtWorkOrders", "JOBNUMBER")
+
+F.Intrinsic.Control.For(V.Local.iCounter, 0, V.DataTable.dtWorkOrders.RowCount--, 1)
+	
+	F.Intrinsic.String.Build("[JOBNUMBER] = '{0}'", V.DataTable.dtWorkOrders(V.Local.iCounter).JOBNUMBER!FieldValTrim, V.Local.sFilter)
+	F.Data.DataView.SetFilter("dtFile", "dvFile", V.Local.sFilter)
+	
+	F.Intrinsic.Control.If(V.DataView.dtFile!dvFile.RowCount, >, 0)
+		F.Intrinsic.String.Replace(V.DataTable.dtWorkOrders(V.Local.iCounter).JOBNUMBER!FieldValTrim, ":", "-", V.Local.sJob)
+		'Make JOBNUMBER column all CAPS
+		F.Intrinsic.String.Format(V.Local.sJob, ">", V.Local.sJob)
+		F.Intrinsic.String.Split(V.Local.sJob, "-", V.Local.sSplitJob)
+		
+		F.Data.DataTable.Compute("dtFile", "Sum(TOTAL_TIME)", V.Local.sFilter, V.Local.fTime)
+		
+		'get the average time
+		F.Intrinsic.Math.Div(V.Local.fTime, V.DataView.dtFile!dvFile.RowCount, V.Local.fTime)
+		
+		F.Intrinsic.Control.If(V.DataView.dtFile!dvFile(0).OnePartCutTime_Hrs!FieldValFloat, >, 0)
+			F.Intrinsic.Math.Div(1, V.DataView.dtFile!dvFile(0).OnePartCutTime_Hrs!FieldValFloat, V.Local.fCutTime)
+		F.Intrinsic.Control.Else
+			V.Local.fCutTime.Set(0)
+		F.Intrinsic.Control.EndIf
+		
+		V.Local.sTaskName.Set(V.DataView.dtFile!dvFile(0).TASKNAME!FieldValTrim)
+		V.Local.fGood.Set(V.DataView.dtFile!dvFile(0).QTY_FLOAT!FieldValFloat)
+		V.Local.sWC.Set(V.DataView.dtFile!dvFile(0).MACHINE!FieldValTrim)
+		
+		'add to main nest datatable
+		F.Data.DataTable.AddRow("dtNestData", "FULL_JOB", V.Local.sJob, "PROGRAM_QTY", V.Local.fGood, "TIME", V.Local.fTime, "WORKCENTER", V.Local.sWC, "TASK", V.Local.sTaskName, "PARTS_PER_HOUR", V.Local.fCutTime, "JOB", V.Local.sSplitJob(0), "SUFFIX", V.Local.sSplitJob(1), "SEQUENCE", V.Local.sSplitJob(2))
+	F.Intrinsic.Control.EndIf
+	
+F.Intrinsic.Control.Next(V.Local.iCounter)
+F.Data.DataView.Close("dtFile", "dvFile")
+F.Data.DataTable.Close("dtFile")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.ReadFile.End
+
+Program.Sub.CheckWorkOrders.Start
+'check if work orders are valid
+
+F.Intrinsic.Control.Try
+
+V.Local.sSQL.Declare(String)
+
+'changing this to check if programming step has already been updated
+V.Local.sSQL.Set("Select RTRIM(JOB) + RTRIM(SUFFIX) JS, 'Y' as VALID, RTRIM(PART) as WC from V_JOB_OPERATIONS where LMO = 'L' and SEQ = '000100' and FLAG_CLOSED <> 'Y'")
+
+F.Data.DataTable.CreateFromSQL("dtWOs", "Con", V.Local.sSQL)
+
+'F.Data.Dictionary.CreateFromSQL("dictWorkOrders", "Con", V.Local.sSQL)
+F.Data.Dictionary.CreateFromDataTable("dictWorkOrders", "dtWOs", "JS", "VALID")
+F.Data.Dictionary.SetDefaultReturn("dictWorkOrders", "N")
+F.Data.DataTable.FillFromDictionary("dtNestData", "dictWorkOrders", "JOB_SUFFIX", "VALID")
+F.Data.Dictionary.Close("dictWorkOrders")
+
+'fill in original programming WC
+F.Data.DataTable.AddColumn("dtNestData", "PROGRAMMING_WC", "String")
+F.Data.Dictionary.CreateFromDataTable("dictWorkCenters", "dtWOs", "JS", "WC")
+F.Data.Dictionary.SetDefaultReturn("dictWorkCenters", "")
+F.Data.DataTable.FillFromDictionary("dtNestData", "dictWorkCenters", "JOB_SUFFIX", "PROGRAMMING_WC")
+F.Data.Dictionary.Close("dictWorkCenters")
+
+F.Data.DataView.Create("dtNestData", "dvFinalNestData", 22, "[VALID] = 'Y'", "")
+F.Data.DataView.ToDataTable("dtNestData", "dvFinalNestData", "dtFinalNestData", True)
+F.Data.DataView.Close("dtNestData", "dvFinalNestData")
+F.Data.DataTable.Close("dtNestData")
+
+F.Data.DataTable.Close("dtWOs")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.CheckWorkOrders.End
+
+Program.Sub.UpdateEstimates.Start
+'update the estimated time and units in JOB_OPERATIONs
+
+F.Intrinsic.Control.Try
+
+V.Local.iCounter.Declare(Long)
+V.Local.sSQL.Declare(String)
+
+F.Intrinsic.Control.CallSub(AddLog, "PROJECT", V.Global.sProject, "MESSAGE", "Updating Estimates...")
+
+'update the estimates on the laser step, not the one passed (the programming step)
+'F.Data.DataTable.SetValue("dtFinalNestData", -1, "SEQUENCE", "000300")
+'F.Data.DataTable.SaveToDB("dtFinalNestData", "Con", "JOB_OPERATIONS", "JOB*!*SUFFIX*!*SEQUENCE*!*LMO", 256, "JOB@!@JOB*!*SUFFIX@!@SUFFIX*!*SEQUENCE@!@SEQ*!*LMO@!@LMO*!*PARTS_PER_HOUR@!@UNITS*!*TIME@!@HOURS_ESTIMATED")
+
+'above was inserting records if none found, don't wanna do that
+F.Intrinsic.Control.For(V.Local.iCounter, 0, V.DataTable.dtFinalNestData.RowCount--, 1)
+	F.Intrinsic.String.Build("UPDATE JOB_OPERATIONS SET UNITS = {0}, HOURS_ESTIMATED = {1} where JOB = '{2}' and SUFFIX = '{3}' and SEQ = '000300' and LMO = 'L'", V.DataTable.dtFinalNestData(V.Local.iCounter).PARTS_PER_HOUR!FieldValFloat, V.DataTable.dtFinalNestData(V.Local.iCounter).TIME!FieldValFloat, V.DataTable.dtFinalNestData(V.Local.iCounter).JOB!FieldValTrim, V.DataTable.dtFinalNestData(V.Local.iCounter).SUFFIX!FieldValTrim, V.Local.sSQL)
+	F.ODBC.Connection!Con.Execute(V.Local.sSQL)
+F.Intrinsic.Control.Next(V.Local.iCounter)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.UpdateEstimates.End
+
+Program.Sub.RescheduleJobs.Start
+'update the WC and reschedule the job
+
+F.Intrinsic.Control.Try
+
+V.Local.iCounter.Declare(Long)
+V.Local.sJob.Declare(String)
+V.Local.sSuffix.Declare(String)
+V.Local.sSeq.Declare(String)
+V.Local.sDueDate.Declare(String)
+V.Local.sStartDate.Declare(String)
+V.Local.sRet.Declare(String)
+V.Local.sWC.Declare(String)
+V.Local.sWCDesc.Declare(String)
+V.Local.fWCRate.Declare(Float)
+V.Local.fWCCrewSize.Declare(Float)
+V.Local.fWCFloat.Declare(Float)
+V.Local.fWCPerMod.Declare(Float)
+V.Local.sParams.Declare(String)
+V.Local.sMessage.Declare(String)
+V.Local.sDirection.Declare(String)
+V.Local.sSQL.Declare(String)
+
+F.Intrinsic.Control.CallSub(AddLog, "PROJECT", V.Global.sProject, "MESSAGE", "Rescheduling Jobs...")
+
+'get scheduling direction
+F.Intrinsic.Control.CallSub(GetSetting, "SETTING", "SCHEDULE_DIRECTION")
+V.Local.sDirection.Set(V.Args.SETTING)
+F.Intrinsic.Control.If(V.Local.sDirection.Trim, =, "")
+	V.Local.sMessage.Set("Error: No Scheduling Direction set up in Shop Floor Control > Administration > Workcenter Priority Maintenance [5559]")
+	F.Intrinsic.Control.CallSub(UnattendedErrorMessage, "MESSAGE", V.Local.sMessage, "PROJECT", V.Global.sProject, "PROJECTTITLE", V.Global.sProjectTitle)
+	F.Intrinsic.Control.CallSub(Unload)
+F.Intrinsic.Control.Else
+	F.Intrinsic.Control.If(V.Local.sDirection.Trim, =, "Forward")
+		V.Local.sDirection.Set("F")
+	F.Intrinsic.Control.Else
+		V.Local.sDirection.Set("B")
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.For(V.Local.iCounter, 0, V.DataTable.dtFinalNestData.RowCount--, 1)
+	
+	V.Local.sJob.Set(V.DataTable.dtFinalNestData(V.Local.iCounter).JOB!FieldValTrim)
+	V.Local.sSuffix.Set(V.DataTable.dtFinalNestData(V.Local.iCounter).SUFFIX!FieldValTrim)
+	
+	'they want to update the WC on the 300 Step
+	V.Local.sSeq.Set("000300")
+	V.Local.sWC.Set(V.DataTable.dtFinalNestData(V.Local.iCounter).WORKCENTER!FieldValTrim)
+	
+	F.Intrinsic.String.Build("select DATE_DUE, DATE_START from V_JOB_HEADER where JOB = '{0}' and SUFFIX = '{1}'", V.Local.sJob, V.Local.sSuffix, V.Local.sSQL)
+	F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSQL, V.Local.sRet)
+	F.Intrinsic.Control.If(V.Ambient.ExecuteAndReturnEOF)
+		F.Intrinsic.String.Build("Error: No record found for Job {0}-{1}-{2}", V.Local.sJob, V.Local.sSuffix, V.Local.sSeq, V.Local.sMessage)
+		F.Intrinsic.Control.CallSub(UnattendedErrorMessage, "MESSAGE", V.Local.sMessage, "PROJECT", V.Global.sProject, "PROJECTTITLE", V.Global.sProjectTitle)
+	F.Intrinsic.Control.EndIf
+	
+	F.Intrinsic.String.Split(V.Local.sRet, "*!*", V.Local.sRet)
+	V.Local.sDueDate.Set(V.Local.sRet(0))
+	V.Local.sStartDate.Set(V.Local.sRet(1))
+	
+	F.Intrinsic.String.Format(V.Local.sDueDate, "MMDDYY", V.Local.sDueDate)
+	F.Intrinsic.String.Format(V.Local.sStartDate, "MMDDYY", V.Local.sStartDate)
+	
+	F.Intrinsic.String.Build("SELECT WC_NAME, STANDARD_COST, FLOAT, SCHED_PCT_MOD, CREWSIZE, NO_MACHINES, PROJ_GROUP FROM WORKCENTERS WHERE MACHINE = '{0}';", V.Local.sWC.Trim, V.Local.sSQL)
+	F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSQL, V.Local.sRet)
+	F.Intrinsic.Control.If(V.Ambient.ExecuteAndReturnEOF)
+		F.Intrinsic.String.Build("Error: No record found for WC {0}", V.Local.sWC, V.Local.sMessage)
+		F.Intrinsic.Control.CallSub(UnattendedErrorMessage, "MESSAGE", V.Local.sMessage, "PROJECT", V.Global.sProject, "PROJECTTITLE", V.Global.sProjectTitle)
+	F.Intrinsic.Control.EndIf
+	F.Intrinsic.String.Split(V.Local.sRet, "*!*", V.Local.sRet)
+				
+	V.Local.fWCRate.Set(V.Local.sRet(1))
+	V.Local.fWCFloat.Set(V.Local.sRet(2))
+	V.Local.fWCPerMod.Set(V.Local.sRet(3))
+	V.Local.fWCCrewSize.Set(V.Local.sRet(4))
+	
+	F.Intrinsic.String.Build("UPDATE JOB_OPERATIONS SET PART = '{0}', BURDEN = '{1}', CREW_SIZE = '{2}' WHERE JOB = '{3}' AND SUFFIX = '{4}' AND SEQ = '{5}';", V.Local.sWC.Trim, V.Local.fWCRate, V.Local.fWCCrewSize, V.Local.sJob, V.Local.sSuffix, V.Local.sSeq, V.Local.sSQL)
+	F.ODBC.Connection!con.Execute(V.Local.sSQL)
+	
+	F.Intrinsic.String.Build("UPDATE SCHED_WO_SUPP SET POST_FLOAT = '{0}', PERC_MODIFIER = '{1}' WHERE WO = '{2}' AND WO_SUFFIX = '{3}' AND WO_SEQ = '{4}';", V.Local.fWCFloat, V.Local.fWCPerMod, V.Local.sJob, V.Local.sSuffix, V.Local.sSeq, V.Local.sSQL)
+	F.ODBC.Connection!con.Execute(V.Local.sSQL)
+
+	F.Intrinsic.String.Build("{0}!*!{1}!*!{2}!*!{3}!*!!*!{4}", V.Local.sStartDate, V.Local.sDueDate, V.Local.sJob, V.Local.sSuffix, V.Local.sDirection, V.Local.sParams)
+	F.Global.General.CallWrapperSync(500030, V.Local.sParams)
+
+F.Intrinsic.Control.Next(V.Local.iCounter)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.RescheduleJobs.End
+
+Program.Sub.UpdateOpenWODashboardNotes.Start
+'save task name to Open Work Order Dashboard Notes
+
+F.Intrinsic.Control.Try
+
+F.Data.DataTable.SaveToDB("dtFinalNestData", "Con", "GAB_4169_WO_NOTES", "JOB*!*SUFFIX", 256, "JOB@!@JOB*!*SUFFIX@!@SUFFIX*!*TASK@!@NOTES")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.UpdateOpenWODashboardNotes.End
+
+Program.Sub.RecordLabor.Start
+'use the Jb0455 library to upload labor
+'claiming pieces, default time and sequence (100 is programming sequence, default time is 0.01 hours)
+
+F.Intrinsic.Control.Try
+
+V.Local.sEmployee.Declare(String)
+V.Local.iCounter.Declare(Long)
+V.Local.iQuantity.Declare(Float)
+
+F.Intrinsic.Control.CallSub(AddLog, "PROJECT", V.Global.sProject, "MESSAGE", "Recording labor and good pieces...")
+
+F.Intrinsic.Control.CallSub(GetSetting, "SETTING", "DEFAULT_EMPLOYEE")
+V.Local.sEmployee.Set(V.Args.Setting)
+F.Intrinsic.Control.If(V.Local.sEmployee.Trim, =, "")
+	V.Local.sMessage.Set("Error: No Default Employee set up in Shop Floor Control > Administration > Workcenter Priority Maintenance [5559]")
+	F.Intrinsic.Control.CallSub(UnattendedErrorMessage, "MESSAGE", V.Local.sMessage, "PROJECT", V.Global.sProject, "PROJECTTITLE", V.Global.sProjectTitle)
+	F.Intrinsic.Control.CallSub(Unload)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.For(V.Local.iCounter, 0, V.DataTable.dtFinalNestData.RowCount--, 1)
+	'Multiply qty by 10,000 to upload
+	F.Intrinsic.Math.Mult(V.DataTable.dtFinalNestdata(V.Local.iCounter).PROGRAM_QTY!FieldValLong, 10000, V.Local.iQuantity)
+	F.Data.DataTable.AddRow("JB0455", "DATE", V.Ambient.Date.FormatMMDDYY, "EMPLOYEE", V.Local.sEmployee, "JOB", V.DataTable.dtFinalNestdata(V.Local.iCounter).JOB!FieldValTrim, "SUFFIX", V.DataTable.dtFinalNestdata(V.Local.iCounter).SUFFIX!FieldValTrim, "SEQ", "000100", "WC", V.DataTable.dtFinalNestdata(V.Local.iCounter).PROGRAMMING_WC!FieldValTrim, "HOURS", 0.01, "CLOSED", "Y", "INDIRECT", "D", "RATETYPE", "R", "GOODPCS", V.Local.iQuantity)
+F.Intrinsic.Control.Next(V.Local.iCounter)
+
+F.Intrinsic.Control.CallSub(JB0455Sync)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.RecordLabor.End
+
+Program.Sub.CloseSequences.Start
+F.Intrinsic.Control.Try
+
+V.Local.iCounter.Declare(Long)
+V.Local.sSQL.Declare(String)
+V.Local.sJob.Declare(String)
+V.Local.sSuffix.Declare(String)
+
+'close the programming sequence in APS
+F.Intrinsic.Control.For(V.Local.iCounter, 0, V.DataTable.dtFinalNestData.RowCount--, 1)
+	V.Local.sJob.Set(V.DataTable.dtFinalNestData(V.Local.iCounter).JOB!FieldValTrim)
+	V.Local.sSuffix.Set(V.DataTable.dtFinalNestData(V.Local.iCounter).SUFFIX!FieldValTrim)
+	
+	F.Intrinsic.String.Build("UPDATE APSV3_JBLINES SET COMPLDATE = '{0}' where JOB = '{1}' and SFX = '{2}' and SEQ = 100 and SEQTYPE = 1", V.Ambient.Date.PervasiveDate, V.Local.sJob.PSQLFriendly, V.Local.sSuffix.PSQLFriendly, V.Local.sSQL)
+	F.ODBC.Connection!Con.Execute(V.Local.sSQL)
+F.Intrinsic.Control.Next(V.Local.iCounter)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.CloseSequences.End
+
+Program.Sub.Unload.Start
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.CallSub(CloseImportDT)
+F.Intrinsic.Control.CallSub(CloseSettingsDT)
+
+F.Intrinsic.Control.If(V.DataTable.dtFinalNestData.Exists)
+	F.Data.DataTable.Close("dtFinalNestData")
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.CallSub(CloseConnection)
+F.Intrinsic.Control.CallSub(ScriptPIDClear, "PROJECT", V.Global.sProject, "TASK", V.Global.sProjectTitle)
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.Unload.End
+
+Program.Sub.OpenConnection.Start
+'check if a connection to the database is already open
+'if not, open one
+'increment connection counter
+
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.If(V.Global.iConnections, =, 0)
+	F.ODBC.Connection!Con.OpenCompanyConnection
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Math.Add(V.Global.iConnections, 1, V.Global.iConnections)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.OpenConnection.End
+
+Program.Sub.CloseConnection.Start
+'if no connections are currently being used, close connection
+
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.If(V.Global.iConnections, >, 0)
+	F.Intrinsic.Math.Sub(V.Global.iConnections, 1, V.Global.iConnections)
+	
+	F.Intrinsic.Control.If(V.Global.iConnections, =, 0)
+		F.ODBC.Connection!Con.Close
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.CloseConnection.End
+
+Program.Sub.ScriptPIDCheck.Start
+'check if the process is already running
+'store PID in a text file
+'Pass PROJECT (folder to store in), TASK (what to name text file)
+
+F.Intrinsic.Control.Try
+
+V.Local.bExists.Declare(Boolean)
+V.Local.sDir.Declare(String)
+V.Local.sCurrentPIDProcess.Declare(String)
+V.Local.sFile.Declare(String)
+V.Local.sProject.Declare(String)
+V.Local.sTask.Declare(String)
+
+V.Local.sProject.Set(V.Args.Project)
+V.Local.sTask.Set(V.Args.Task)
+
+F.Intrinsic.String.Build("{0}\Custom\{1}", V.Caller.GlobalDir, V.Local.sProject, V.Local.sDir)
+F.Intrinsic.Control.CallSub(CheckDirectory, "Path", V.Local.sDir)
+
+F.Intrinsic.String.Build("{0}\{1}_Running.txt", V.Local.sDir, V.Local.sTask, V.Local.sFile)
+F.Intrinsic.File.Exists(V.Local.sFile, V.Local.bExists)
+
+F.Intrinsic.Control.If(V.Local.bExists.Not)
+	'program is not running
+	'Create Program Status file to let it know its running
+	F.Intrinsic.File.String2File(V.Local.sFile, V.Ambient.PID)
+F.Intrinsic.Control.Else
+ 	'then the file exists: get the PID from the file to see if the process is still running
+	F.Intrinsic.File.File2String(V.Local.sFile, V.Local.sCurrentPIDProcess)
+	F.Intrinsic.Task.PIDRunning(V.Local.sCurrentPIDProcess, V.Local.bExists)
+	F.Intrinsic.Control.If(V.Local.bExists)
+		'the the program is running- don't start new process
+		F.Intrinsic.Control.End
+	F.Intrinsic.Control.Else
+		'the program has stopped, but did not delete the file. Delete the file and create a new file for current run
+		F.Intrinsic.File.DeleteFile(V.Local.sFile)
+		F.Intrinsic.File.String2File(V.Local.sFile, V.Ambient.PID)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.ScriptPIDCheck.End
+
+Program.Sub.ScriptPIDClear.Start
+'delete the is running file, so the next time the program runs it knows it isn't currently running
+'Pass PROJECT (folder to store in), TASK (what to name text file)
+
+F.Intrinsic.Control.Try
+
+V.Local.bExists.Declare(Boolean)
+V.Local.sDir.Declare(String)
+V.Local.sFile.Declare(String)
+V.Local.sProject.Declare(String)
+V.Local.sTask.Declare(String)
+
+V.Local.sProject.Set(V.Args.Project)
+V.Local.sTask.Set(V.Args.Task)
+
+F.Intrinsic.String.Build("{0}\Custom\{1}\", V.Caller.GlobalDir, V.Local.sProject, V.Local.sDir)
+F.Intrinsic.Control.CallSub(CheckDirectory, "Path", V.Local.sDir)
+
+F.Intrinsic.String.Build("{0}\{1}_Running.txt", V.Local.sDir, V.Local.sTask, V.Local.sFile)
+F.Intrinsic.File.Exists(V.Local.sFile, V.Local.bExists)
+
+F.Intrinsic.Control.If(V.Local.bExists)
+	F.Intrinsic.File.DeleteFile(V.Local.sFile)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.ScriptPIDClear.End
+
+Program.Sub.CheckDirectory.Start
+'check if the given import directories exist
+'create them if they don't
+'pass PATH to check
+
+F.Intrinsic.Control.Try
+
+V.Local.sPath.Declare(String)
+V.Local.bExists.Declare(Boolean)
+
+V.Local.sPath.Set(V.Args.Path)
+F.Intrinsic.File.DirExists(V.Local.sPath, V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists.Not)
+	F.Intrinsic.File.CreateDir(V.Local.sPath)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.CheckDirectory.End
+
+Program.Sub.CheckFile.Start
+'check if the given file exists
+'create it if it doesn't
+'pass FILE to check
+
+F.Intrinsic.Control.Try
+
+V.Local.sFile.Declare(String)
+V.Local.bExists.Declare(Boolean)
+V.Local.sContents.Declare(String)
+
+V.Local.sFile.Set(V.Args.File)
+F.Intrinsic.File.Exists(V.Local.sFile, V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists.Not)
+	F.Intrinsic.String.Build("{0} {1}: Log Start", V.Ambient.Date.FormatYYYY-MM-DD, V.Ambient.Time.Format!HH:NN:SS, V.Local.sContents)
+	F.Intrinsic.File.String2File(V.Local.sFile, V.Local.sContents)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.CheckFile.End
+
+Program.Sub.AddLog.Start
+'pass a project #, and a message
+'date and time will be automatically added
+'pass PROJECT (Folder, log name), MESSAGE (what to log)
+
+F.Intrinsic.Control.Try
+
+V.Local.sProject.Declare(String)
+V.Local.sMessage.Declare(String)
+V.Local.bExists.Declare(Boolean)
+V.Local.sPath.Declare(String)
+V.Local.sFile.Declare(String)
+V.Local.sContents.Declare(String)
+
+'these error messages are for developers, should never happen in finished product
+F.Intrinsic.Variable.ArgExists("Project", V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists.Not)
+	F.Intrinsic.UI.Msgbox("Error: AddLog subroutine requires argument 'Project'")
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Variable.ArgExists("Message", V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists.Not)
+	F.Intrinsic.UI.Msgbox("Error: AddLog subroutine requires argument 'Message'")
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+V.Local.sProject.Set(V.Args.Project.Trim)
+V.Local.sMessage.Set(V.Args.Message.Trim)
+
+F.Intrinsic.String.Replace(V.Local.sMessage, V.Ambient.NewLine, ", ", V.Local.sMessage)
+
+F.Intrinsic.File.MakeFilenameFriendly(V.Local.sProject, V.Local.sProject)
+F.Intrinsic.String.Build("{0}\Custom\{1}", V.Caller.GlobalDir, V.Local.sProject, V.Local.sPath)
+F.Intrinsic.Control.CallSub(CheckDirectory, "Path", V.Local.sPath)
+
+F.Intrinsic.String.Build("{0}\{1}_Log.txt", V.Local.sPath, V.Local.sProject, V.Local.sFile)
+F.Intrinsic.Control.CallSub(CheckFile, "File", V.Local.sFile)
+
+F.Intrinsic.String.Build("{0} {1}: {2}", V.Ambient.Date.FormatYYYY-MM-DD, V.Ambient.Time.Format!HH:NN:SS, V.Local.sMessage, V.Local.sContents)
+F.Intrinsic.File.Append2FileNewLine(V.Local.sFile, V.Local.sContents)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.AddLog.End
+
+Program.Sub.UnattendedErrorMessage.Start
+'send a short error message, add the log
+'pass project ID, project title (for message box title), and error message
+
+F.Intrinsic.Control.Try
+
+V.Local.sMessage.Declare(String)
+
+V.Local.sMessage.Set(V.Args.Message.Trim)
+F.Intrinsic.String.Replace(V.Local.sMessage, V.Ambient.NewLine, ", ", V.Local.sMessage)
+
+F.Intrinsic.UI.InvokeWaitDialog(V.Local.sMessage, V.Args.ProjectTitle)
+F.Intrinsic.UI.Sleep(10)
+F.Intrinsic.UI.CloseWaitDialog
+
+F.Intrinsic.Control.CallSub(AddLog, "Project", V.Args.Project, "Message", V.Local.sMessage)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.UnattendedErrorMessage.End
+
+Program.Sub.ErrorMessage.Start
+'basic error message for replacing catch block
+'this is really just for when printing the message and ending program
+'pass error number, error description, current subroutine
+'optional callback sub, this will be called before ending
+F.Intrinsic.Control.Try
+
+V.Local.iError.Declare(Long)
+V.Local.sErrorDescription.Declare(String)
+V.Local.sSubroutine.Declare(String)
+V.Local.sError.Declare(String)
+V.Local.bExists.Declare(Boolean)
+V.Local.sCallback.Declare(String)
+
+V.Local.iError.Set(V.Args.ErrorNumber)
+V.Local.sErrorDescription.Set(V.Args.ErrorDescription)
+V.Local.sSubroutine.Set(V.Args.Subroutine)
+
+'make sure we aren't in an error loop
+F.Intrinsic.Control.If(V.Global.bError)
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndIf
+V.Global.bError.Set(True)
+
+F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}", V.Caller.ScriptFile, V.Ambient.Newline, V.Local.sSubroutine, V.Local.iError, V.Local.sErrorDescription, V.Ambient.GABVersion, V.Local.sError)
+
+F.Intrinsic.Variable.ArgExists("UNATTENDED", V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists)
+	F.Intrinsic.Control.If(V.Args.UNATTENDED)
+		F.Intrinsic.Control.CallSub(UnattendedErrorMessage, "MESSAGE", V.Local.sError, "PROJECT", V.Global.sProject, "PROJECTTITLE", V.Global.sProjectTitle)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Else
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Variable.ArgExists("Callback", V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists)
+	V.Local.sCallback.Set(V.Args.Callback.Trim)
+	F.Intrinsic.Control.CallSub(V.Local.sCallback)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Caller.ScriptFile,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndTry
+Program.Sub.ErrorMessage.End
+
+Program.Sub.MoveFile.Start
+'move file to the given directory
+'create the directory if it doesn't exist
+'if file already exists there, add a suffix
+'pass FILE, NEW_PATH, NEW_NAME (Optional, if name changing)
+
+F.Intrinsic.Control.Try
+
+V.Local.sFile.Declare(String)
+V.Local.sNewPath.Declare(String)
+V.Local.bExists.Declare(boolean)
+V.Local.iCounter.Declare(Long, 0)
+V.Local.sFileName.Declare(String)
+V.Local.sNewFile.Declare(String)
+V.Local.sNewFileTemp.Declare(String)
+V.Local.sSlash.Declare(String, "")
+V.Local.bMoved.Declare(Boolean)
+V.Local.sNewName.Declare(String, "")
+
+V.Local.sFile.Set(V.Args.FILE)
+V.Local.sNewPath.Set(V.Args.NEW_PATH)
+F.Intrinsic.Variable.ArgExists("NEW_NAME", V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists)
+	V.Local.sNewName.Set(V.Args.NEW_NAME)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.CallSub(CheckDirectory, "PATH", V.Local.sNewPath)
+
+F.Intrinsic.Control.If(V.Local.sNewPath.Right1, !=, "\")
+	V.Local.sSlash.Set("\")
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.If(V.Local.sNewName.Trim, =, "")
+	F.Intrinsic.File.GetFileNameFromFQN(V.Local.sFile, V.Local.sFileName)
+F.Intrinsic.Control.Else
+	V.Local.sFileName.Set(V.Local.sNewName)
+F.Intrinsic.Control.EndIf
+F.Intrinsic.String.Build("{0}{1}{2}", V.Local.sNewPath, V.Local.sSlash, V.Local.sFileName, V.Local.sNewFile)
+
+F.Intrinsic.File.Exists(V.Local.sNewFile, V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists)
+	F.Intrinsic.Control.DoUntil(V.Local.bExists.Not)
+		F.Intrinsic.Math.Add(V.Local.iCounter, 1, V.Local.iCounter)
+		F.Intrinsic.String.Split(V.Local.sNewFile, ".", V.Local.sNewFileTemp)
+		F.Intrinsic.String.Build("{0}_{1}", V.Local.sNewFileTemp(0), V.Local.iCounter, V.Local.sNewFileTemp(0))
+		F.Intrinsic.String.Join(V.Local.sNewFileTemp, ".", V.Local.sNewFileTemp)
+		F.Intrinsic.File.Exists(V.Local.sNewFileTemp, V.Local.bExists)
+	F.Intrinsic.Control.Loop
+	V.Local.sNewFile.Set(V.Local.sNewFileTemp)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.File.MoveFile(V.Local.sFile, V.Local.sNewFile, V.Local.bMoved)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "UNATTENDED", True, "Callback", "Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.MoveFile.End

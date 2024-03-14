@@ -1,0 +1,27 @@
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'GCG_5559_DownloadAPS.g2u
+'Trey S
+'August 27th, 2019
+'For Louis Industries
+'Quote 11252-0
+'Ticket LOU120-51520191218-9
+'run Advanced Planning System > File > Download Scheduling Files
+'for use on the task scheduler
+'This project does not depend on this, but Louis needed this as one of their other integrations
+'is adding sequences to work orders. and that data isn't getting written to APS until they run
+'Download Scheduling Files and do a Global Schedule or reschedule each job one at a time
+
+F.Intrinsic.Control.Try
+
+V.Local.sParams.Declare(String)
+
+F.Intrinsic.String.ConcatCallWrapperArgs("SP", "", "", V.Local.sParams)
+F.Global.General.CallWrapperSync(500000, V.Local.sParams)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End

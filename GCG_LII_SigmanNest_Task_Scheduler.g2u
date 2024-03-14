@@ -1,0 +1,376 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+V.Global.sProject.Declare(String, "GSS - SigmaNest Integration")
+V.Global.sTask.Declare(String, "GCG_LII_SigmanNest_Task_Scheduler")
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'GCG_LII_SigmanNest_Task_Scheduler.g2u
+'For Louis Industries
+'Modified by Trey S
+'Part of a VT, 2020-10-15
+'Converting to G2U, adding logging and process checking
+'Moving from Task Scheduler to OLU
+'This is the main script that launches all processes for Louis Industries's SigmaNest Integration
+
+F.Intrinsic.Control.Try
+
+V.Local.iPid.Declare(Long)
+V.Local.sPrgm.Declare(String)
+V.Local.sMessage.Declare(String)
+
+'Now check when the last run was
+F.Intrinsic.Control.If(V.Caller.Hook, =, 38130)
+	'check when last run was
+	F.Intrinsic.Control.CallSub(CheckLastRun)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.CallSub(ScriptPIDCheck, "Project", V.Global.sProject, "Task", V.Global.sTask)
+
+'modified 2020-03-04 by Trey S
+'F.Intrinsic.String.Concat(V.Caller.PluginsDir,"\GAB\GAS\SigmaNest_SN93_SN90.gas",V.Local.sPrgm)
+'F.Global.General.CallSyncGAS(V.Local.sPrgm)
+
+F.Intrinsic.Control.CallSub(AddLog, "Project", V.Global.sProject, "Task", V.Global.sTask, "Message", "Launching GCG_LII_SigmaNest_SN91.g2u")
+F.Intrinsic.String.Concat(V.Caller.PluginsDir,"\GAB\GAS\GCG_LII_SigmaNest_SN91.g2u",V.Local.sPrgm)
+F.Global.General.CallSyncGAS(V.Local.sPrgm)
+
+F.Intrinsic.Control.CallSub(AddLog, "Project", V.Global.sProject, "Task", V.Global.sTask, "Message", "Launching GCG_LII_GSS_To_SigmaNest.g2u")
+F.Intrinsic.String.Concat(V.Caller.PluginsDir,"\GAB\GAS\GCG_LII_GSS_To_SigmaNest.g2u",V.Local.sPrgm)
+F.Global.General.CallSyncGAS(V.Local.sPrgm)
+
+F.Intrinsic.Control.CallSub(AddLog, "Project", V.Global.sProject, "Task", V.Global.sTask, "Message", "Launching GCG_LII_SigmaNest_To_GSS.g2u")
+F.Intrinsic.String.Concat(V.Caller.PluginsDir,"\GAB\GAS\GCG_LII_SigmaNest_To_GSS.g2u",V.Local.sPrgm)
+F.Global.General.CallSyncGAS(V.Local.sPrgm)
+
+F.Intrinsic.String.Concat(V.Caller.PluginsDir,"\GAB\GAS\GCG_5559_SigmaNestImport.g2u",V.Local.sPrgm)
+F.Global.General.CallSyncGAS(V.Local.sPrgm)
+
+'F.Intrinsic.String.Concat(V.Caller.PluginsDir,"\GAB\GAS\GCG_SN_Data_Upload.gas",V.Local.sPrgm)
+'F.Global.General.CallSyncGAS(V.Local.sPrgm)
+
+F.Intrinsic.Control.CallSub(SaveLastRun)
+F.Intrinsic.Control.CallSub(ScriptPIDClear, "Project", V.Global.sProject, "Task", V.Global.sTask)
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "WRITE_LOG_FILE", True, "Project", V.Global.sProject, "Task", V.Global.sTask, "UNATTENDED", True, "ProjectTitle", V.Global.sProject)
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.CheckLastRun.Start
+F.Intrinsic.Control.Try
+
+V.Local.sFile.Declare(String)
+V.Local.bExists.Declare(Boolean)
+V.Local.dDate.Declare(Date)
+V.Local.iDifference.Declare(Long)
+
+F.Intrinsic.String.Build("{0}\Custom\{1}\{2}\Last Run\Last_Run.dat", V.Caller.GlobalDir, V.Global.sProject, V.Caller.CompanyCode, V.Local.sFile)
+F.Intrinsic.File.Exists(V.Local.sFile, V.Local.bExists)
+
+F.Intrinsic.Control.If(V.Local.bExists)
+	'F.Intrinsic.File.GetFileDateTime(V.Local.sFile, V.Local.dDate)
+	F.Intrinsic.File.File2String(V.Local.sFile, V.Local.dDate)
+	F.Intrinsic.Date.DateDiff("N", V.Local.dDate, V.Ambient.Now, V.Local.iDifference)
+	F.Intrinsic.Control.If(V.Local.iDifference, <, 30)
+		F.Intrinsic.Control.End
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "WRITE_LOG_FILE", True, "Project", V.Global.sProject, "Task", V.Global.sTask, "UNATTENDED", True, "ProjectTitle", V.Global.sProject)
+F.Intrinsic.Control.EndTry
+Program.Sub.CheckLastRun.End
+
+Program.Sub.SaveLastRun.Start
+F.Intrinsic.Control.Try
+
+V.Local.sFile.Declare(String)
+
+F.Intrinsic.String.Build("{0}\Custom\{1}\{2}\Last Run", V.Caller.GlobalDir, V.Global.sProject, V.Caller.CompanyCode, V.Local.sFile)
+F.Intrinsic.Control.CallSub(CheckDirectories, "Directories", V.Local.sFile)
+F.Intrinsic.String.Build("{0}\Last_Run.dat", V.Local.sFile, V.Local.sFile)
+
+F.Intrinsic.File.String2File(V.Local.sFile, V.Ambient.Now)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "WRITE_LOG_FILE", True, "Project", V.Global.sProject, "Task", V.Global.sTask, "UNATTENDED", True, "ProjectTitle", V.Global.sProject)
+F.Intrinsic.Control.EndTry
+Program.Sub.SaveLastRun.End
+
+Program.Sub.CheckDirectories.Start
+'check if the given import directories exist
+'create them if they don't
+'pass directories delimited with *!*
+
+F.Intrinsic.Control.Try
+
+V.Local.sDirectories.Declare(String)
+V.Local.sPath.Declare(String)
+V.Local.bExists.Declare(Boolean)
+V.Local.iCounter.Declare(Long)
+
+V.Local.sDirectories.Set(V.Args.Directories)
+F.Intrinsic.String.Split(V.Local.sDirectories, "*!*", V.Local.sDirectories)
+
+F.Intrinsic.Control.For(V.Local.iCounter, 0, V.Local.sDirectories.UBound, 1)
+	V.Local.sPath.Set(V.Local.sDirectories(V.Local.iCounter))
+	F.Intrinsic.File.DirExists(V.Local.sPath, V.Local.bExists)
+	F.Intrinsic.Control.If(V.Local.bExists.Not)
+		F.Intrinsic.File.CreateDir(V.Local.sPath)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Next(V.Local.iCounter)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "WRITE_LOG_FILE", True, "Project", V.Global.sProject, "Task", V.Global.sTask, "UNATTENDED", True, "ProjectTitle", V.Global.sProject)
+F.Intrinsic.Control.EndTry
+Program.Sub.CheckDirectories.End
+
+Program.Sub.ScriptPIDCheck.Start
+'check if the process is already running
+'store PID in a text file
+'Pass folder to store in 	- PROJECT
+'what to name file			- TASK
+
+F.Intrinsic.Control.Try
+
+V.Local.bExists.Declare(Boolean)
+V.Local.sDir.Declare(String)
+V.Local.sCurrentPIDProcess.Declare(String)
+V.Local.sFile.Declare(String)
+V.Local.sProject.Declare(String)
+V.Local.sTask.Declare(String)
+V.Local.bRunning.Declare(Boolean, False)
+V.Local.bPIDRunning.Declare(Boolean, False)
+V.Local.sContents.Declare(String)
+
+V.Local.sProject.Set(V.Args.Project)
+V.Local.sTask.Set(V.Args.Task)
+
+'check if running file exists
+F.Intrinsic.String.Build("{0}\Custom\{1}\{2}\IS_RUNNING\{3}_Running.dat", V.Caller.GlobalDir, V.Local.sProject, V.Caller.CompanyCode, V.Local.sTask, V.Local.sFile)
+F.Intrinsic.File.Exists(V.Local.sFile, V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists)
+	'check if file / PID is valid
+	F.Intrinsic.File.File2String(V.Local.sFile, V.Local.sContents)
+	F.Intrinsic.String.Split(V.Local.sContents, V.Ambient.NewLine, V.Local.sContents)
+	F.Intrinsic.String.Replace(V.Local.sContents(0), "PID: ", "", V.Local.sCurrentPIDProcess)
+	V.Local.sContents.Redim(0, 0)
+	F.Intrinsic.Control.If(V.Local.sCurrentPIDProcess.Long, >, 0)
+		'check if PID is actually running
+		F.Intrinsic.Task.PIDRunning(V.Local.sCurrentPIDProcess.Long, V.Local.bPIDRunning)
+		F.Intrinsic.Control.If(V.Local.bPIDRunning)
+			'the program is running
+			V.Local.bRunning.Set(True)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.If(V.Local.bRunning)
+	'if it's already running, end here
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.Else
+	'delete the file if it exists
+	F.Intrinsic.Control.If(V.Local.bExists)
+		F.Intrinsic.File.DeleteFile(V.Local.sFile)
+	F.Intrinsic.Control.EndIf
+	
+	'create lock file contents
+	F.Intrinsic.String.Build("PID: {0}{1}Launch Time: {2}{1}GSS User: {3}{1}Terminal: {4}{1}Windows User: {5}{1}Machine: {6}{1}Hook: {7}{1}Caller: {8}{1}Script: {9}{1}Company Code: {10}", V.Ambient.PID, V.Ambient.NewLine, V.Ambient.Now, V.Caller.User, V.Caller.Terminal, V.System.UserName, V.System.ComputerName, V.Caller.Hook, V.Caller.Caller, V.Caller.ScriptFile, V.Caller.CompanyCode, V.Local.sContents)
+	
+	'create a new lock file
+	F.Intrinsic.String.Build("{0}\Custom\{1}\{2}\IS_RUNNING", V.Caller.GlobalDir, V.Local.sProject, V.Caller.CompanyCode, V.Local.sDir)
+	F.Intrinsic.Control.CallSub(CheckDirectories, "Directories", V.Local.sDir)
+	F.Intrinsic.String.Build("{0}\{1}_Running.dat", V.Local.sDir, V.Local.sTask, V.Local.sFile)
+	F.Intrinsic.File.String2File(V.Local.sFile, V.Local.sContents)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "WRITE_LOG_FILE", True, "Project", V.Global.sProject, "Task", V.Global.sTask, "UNATTENDED", True, "ProjectTitle", V.Global.sProject)
+F.Intrinsic.Control.EndTry
+Program.Sub.ScriptPIDCheck.End
+
+Program.Sub.ScriptPIDClear.Start
+'delete the is running file, so the next time the program runs it knows it isn't currently running
+'Pass folder to store in 	- PROJECT
+'filename  base				- TASK
+
+F.Intrinsic.Control.Try
+
+V.Local.bExists.Declare(Boolean)
+V.Local.sFile.Declare(String)
+V.Local.sProject.Declare(String)
+V.Local.sTask.Declare(String)
+
+V.Local.sProject.Set(V.Args.Project)
+V.Local.sTask.Set(V.Args.Task)
+
+F.Intrinsic.String.Build("{0}\Custom\{1}\{2}\IS_RUNNING\{3}_Running.dat", V.Caller.GlobalDir, V.Local.sProject, V.Caller.CompanyCode, V.Local.sTask, V.Local.sFile)
+F.Intrinsic.File.Exists(V.Local.sFile, V.Local.bExists)
+
+F.Intrinsic.Control.If(V.Local.bExists)
+	F.Intrinsic.File.DeleteFile(V.Local.sFile)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "WRITE_LOG_FILE", True, "Project", V.Global.sProject, "Task", V.Global.sTask, "UNATTENDED", True, "ProjectTitle", V.Global.sProject)
+F.Intrinsic.Control.EndTry
+Program.Sub.ScriptPIDClear.End
+
+Program.Sub.AddLogFile.Start
+'pass a project #, and a message
+'date and time will be automatically added
+'pass PROJECT (Folder)
+'pass type (subfolder)
+'MESSAGE (what to log)
+
+F.Intrinsic.Control.Try
+
+V.Local.sProject.Declare(String)
+V.Local.bExists.Declare(Boolean)
+V.Local.sPath.Declare(String)
+V.Local.sFile.Declare(String)
+V.Local.sContents.Declare(String)
+V.Local.sName.Declare(String)
+
+F.Intrinsic.File.MakeFilenameFriendly(V.Args.Project, V.Local.sProject)
+F.Intrinsic.String.Build("{0}\Custom\{1}\{2}\Log\{3}\", V.Caller.GlobalDir, V.Local.sProject, V.Caller.CompanyCode, V.Args.Type, V.Local.sPath)
+F.Intrinsic.Control.CallSub(CheckDirectories, "DIRECTORIES", V.Local.sPath)
+
+F.Intrinsic.String.StripCharacters(V.Ambient.Now, V.Local.sName)
+
+F.Intrinsic.String.Build("{0}\{1}_Log.txt", V.Local.sPath, V.Local.sName, V.Local.sFile)
+F.Intrinsic.File.String2File(V.Local.sFile, V.Args.Message.Trim)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "WRITE_LOG_FILE", True, "Project", V.Global.sProject, "Task", V.Global.sTask, "UNATTENDED", True, "ProjectTitle", V.Global.sProject)
+F.Intrinsic.Control.EndTry
+Program.Sub.AddLogFile.End
+
+Program.Sub.AddLog.Start
+'pass a project #, and a message
+'date and time will be automatically added
+'pass PROJECT (Folder, log name)
+'MESSAGE (what to log)
+
+F.Intrinsic.Control.Try
+
+V.Local.sProject.Declare(String)
+V.Local.sMessage.Declare(String)
+V.Local.bExists.Declare(Boolean)
+V.Local.sPath.Declare(String)
+V.Local.sFile.Declare(String)
+V.Local.sContents.Declare(String)
+V.Local.sTask.Declare(String)
+
+V.Local.sProject.Set(V.Args.Project.Trim)
+V.Local.sMessage.Set(V.Args.Message.Trim)
+V.Local.sTask.Set(V.Args.Task)
+
+F.Intrinsic.String.Replace(V.Local.sMessage, V.Ambient.NewLine, ", ", V.Local.sMessage)
+
+F.Intrinsic.File.MakeFilenameFriendly(V.Local.sProject, V.Local.sProject)
+F.Intrinsic.String.Build("{0}\Custom\{1}\{2}\Log", V.Caller.GlobalDir, V.Local.sProject, V.Caller.CompanyCode, V.Local.sPath)
+F.Intrinsic.Control.CallSub(CheckDirectories, "DIRECTORIES", V.Local.sPath)
+
+F.Intrinsic.String.Build("{0}\{1}_Log.txt", V.Local.sPath, V.Local.sTask, V.Local.sFile)
+F.Intrinsic.File.Exists(V.Local.sFile, V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists.Not)
+	F.Intrinsic.String.Build("{0} {1}:{2}Log Start", V.Ambient.Date.FormatYYYY-MM-DD, V.Ambient.Time, V.Ambient.Tab, V.Local.sContents)
+	F.Intrinsic.File.String2File(V.Local.sFile, V.Local.sContents)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Build("{0} {1}:{2}{3}", V.Ambient.Date.FormatYYYY-MM-DD, V.Ambient.Time, V.Ambient.Tab, V.Local.sMessage, V.Local.sContents)
+F.Intrinsic.File.Append2FileNewLine(V.Local.sFile, V.Local.sContents)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "WRITE_LOG_FILE", True, "Project", V.Global.sProject, "Task", V.Global.sTask, "UNATTENDED", True, "ProjectTitle", V.Global.sProject)
+F.Intrinsic.Control.EndTry
+Program.Sub.AddLog.End
+
+Program.Sub.UnattendedErrorMessage.Start
+'send a short error message, add the log
+'pass project ID, project title (for message box title), and error message
+
+F.Intrinsic.Control.Try
+
+V.Local.sMessage.Declare(String)
+
+V.Local.sMessage.Set(V.Args.Message.Trim)
+F.Intrinsic.String.Replace(V.Local.sMessage, V.Ambient.NewLine, ", ", V.Local.sMessage)
+
+F.Intrinsic.UI.InvokeWaitDialog(V.Local.sMessage, V.Args.ProjectTitle)
+F.Intrinsic.UI.Sleep(10)
+F.Intrinsic.UI.CloseWaitDialog
+
+F.Intrinsic.Control.CallSub(AddLog, "Project", V.Args.Project, "TASK", V.Args.Task, "Message", V.Local.sMessage)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(ErrorMessage, "ErrorNumber", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription, "Subroutine", V.Ambient.CurrentSubroutine, "WRITE_LOG_FILE", True, "Project", V.Global.sProject, "Task", V.Global.sTask, "UNATTENDED", True, "ProjectTitle", V.Global.sProject)
+F.Intrinsic.Control.EndTry
+Program.Sub.UnattendedErrorMessage.End
+
+Program.Sub.ErrorMessage.Start
+'basic error message for replacing catch block
+'this is really just for when printing the message and ending program
+'pass error number, error description, current subroutine
+'optional callback sub, this will be called before ending
+'optional unattended parameters, those subs may not exist if not using them but won't be called
+
+F.Intrinsic.Control.Try
+
+V.Local.sError.Declare(String)
+V.Local.bExists.Declare(Boolean)
+V.Local.sCallback.Declare(String)
+V.Static.bError.Declare(Boolean, False)
+V.Local.sDoubleNewLine.Declare(String)
+
+F.Intrinsic.String.Build("{6}{1}{1}Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}", V.Caller.ScriptFile, V.Ambient.Newline, V.Args.Subroutine, V.Args.ErrorNumber, V.Args.ErrorDescription, V.Ambient.GABVersion, V.Ambient.Now, V.Local.sError)
+
+F.Intrinsic.Variable.ArgExists("UNATTENDED", V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists)
+	F.Intrinsic.Control.If(V.Args.UNATTENDED)
+		F.Intrinsic.Control.CallSub(UnattendedErrorMessage, "MESSAGE", V.Local.sError, "PROJECT", V.Args.PROJECT, "PROJECTTITLE", V.Args.PROJECTTITLE, "TASK", V.Args.Task)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Else
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Variable.ArgExists("WRITE_LOG_FILE", V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists)
+	F.Intrinsic.Control.If(V.Args.WRITE_LOG_FILE)
+		F.Intrinsic.String.Build("{0}{0}", V.Ambient.NewLine, V.Local.sDoubleNewLine)
+		F.Intrinsic.String.Replace(V.Local.sError, V.Local.sDoubleNewLine, V.Ambient.NewLine, V.Local.sError)
+		
+		F.Intrinsic.String.Build("Time: {0}{1}User: {2}{1}Windows User: {3}{1}Machine: {4}{1}PID: {5}{1}Terminal: {6}{1}Caller: {7}{1}Synchronous: {8}{1}Thread ID: {9}{1}Pervasive Client: {10}{1}GAB Version: {11}{1}GSS Version: {12}{1}Error: {13}{1}Error Description: {14}{1}Script: {15}{1}Subroutine: {16}", V.Ambient.Now, V.Ambient.NewLine, V.Caller.User, V.System.UserName, V.System.ComputerName, V.Ambient.PID, V.Caller.Terminal, V.Caller.Caller, V.Caller.Sync,  V.Ambient.ThreadID, V.Ambient.PervasiveClientVersion, V.Ambient.GABVersion, V.Caller.GSSVersion, V.Args.ErrorNumber, V.Args.ErrorDescription, V.Caller.ScriptFile, V.Args.Subroutine, V.Local.sError)
+		
+		F.Intrinsic.Control.CallSub(AddLogFile, "PROJECT", V.Args.Project, "TYPE", V.Args.Task, "MESSAGE", V.Local.sError)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Variable.ArgExists("Callback", V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists)
+	V.Local.sCallback.Set(V.Args.Callback.Trim)
+	F.Intrinsic.Control.CallSub(V.Local.sCallback)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Caller.ScriptFile,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndTry
+Program.Sub.ErrorMessage.End
+
+Program.Sub.Comments.Start
+${$0$}$GCG_SigmanNest_Task_Scheduler.$}$JCT$}$3/2/2012
+${$3$}$0$}$$}$-1$}$-1$}$$}$1/1/1900$}$For Loius Industries.
+One GAB script to setup in the Task Scheduler to call the SN90, SN941, SN84 GAB sripts
+Program.Sub.Comments.End
+
